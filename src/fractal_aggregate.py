@@ -220,6 +220,115 @@ class FractalAggregate:
         
         return particles
     
+    def calculate_shape_factor(self, particles):
+        """
+        Calculate the shape factor of the fractal aggregate based on the inertia tensor.
+        According to Guesnet et al. (2019), the shape factor is the square root of the ratio 
+        of the largest eigenvalue to the smallest eigenvalue of the inertia matrix.
+        
+        Parameters:
+        - particles: list of dictionaries returned by generate_aggregate()
+                     Must contain 'position' key with numpy array of 3D coordinates.
+        
+        Returns:
+        - shape_factor: float, the calculated shape factor (>= 1.0)
+        """
+        # Extract all particle positions
+        positions = np.array([p['position'] for p in particles])
+        
+        # Calculate the center of mass (centroid) of the aggregate
+        centroid = np.mean(positions, axis=0)
+        
+        # Center the particle positions around the centroid
+        centered_positions = positions - centroid
+        
+        # Calculate the inertia tensor (moment of inertia tensor)
+        # For a set of point masses (each assumed to have mass=1), the inertia tensor I is:
+        # I_ij = sum_k (r_k^2 * delta_ij - r_{k,i} * r_{k,j})
+        # where r_k is the position vector of particle k relative to the centroid,
+        # r_{k,i} is the i-th component of r_k, and delta_ij is the Kronecker delta.
+        
+        # Initialize the inertia tensor (3x3 matrix)
+        I = np.zeros((3, 3))
+        
+        # Compute the inertia tensor
+        for pos in centered_positions:
+            x, y, z = pos
+            r_squared = np.dot(pos, pos)  # r_k^2 = x^2 + y^2 + z^2
+            
+            # I_xx = sum(y^2 + z^2)
+            I[0, 0] += r_squared - x**2
+            # I_yy = sum(x^2 + z^2)
+            I[1, 1] += r_squared - y**2
+            # I_zz = sum(x^2 + y^2)
+            I[2, 2] += r_squared - z**2
+            
+            # I_xy = I_yx = -sum(x*y)
+            I[0, 1] -= x * y
+            I[1, 0] -= x * y
+            # I_xz = I_zx = -sum(x*z)
+            I[0, 2] -= x * z
+            I[2, 0] -= x * z
+            # I_yz = I_zy = -sum(y*z)
+            I[1, 2] -= y * z
+            I[2, 1] -= y * z
+        
+        # The inertia tensor is symmetric, so we can use np.linalg.eigh for real symmetric matrices
+        eigenvalues, _ = np.linalg.eigh(I)
+        
+        # Sort eigenvalues in ascending order
+        eigenvalues_sorted = np.sort(eigenvalues)
+        
+        # Extract the smallest and largest eigenvalues
+        lambda_min = eigenvalues_sorted[0]
+        lambda_max = eigenvalues_sorted[-1]
+        
+        # Calculate shape factor as sqrt(lambda_max / lambda_min)
+        # If lambda_min is zero (all points are collinear or coincident), avoid division by zero
+        if lambda_min < 1e-15:
+            # In theory, this should be extremely rare for a non-trivial aggregate
+            # We'll return a very large number to indicate extreme anisotropy
+            shape_factor = np.inf
+        else:
+            shape_factor = np.sqrt(lambda_max / lambda_min)
+        
+        return shape_factor
+    
+    def calculate_radius_of_gyration(self, particles):
+        """
+        Calculate the radius of gyration (Rg) of the fractal aggregate as defined in
+        Guesnet et al. (2019), Physica A 513, Eq. (2).
+        
+        Rg = sqrt( (1/N) * sum_{i,j>i} (rij)^2 )
+        where N is the number of particles and rij is the distance between particles i and j.
+        
+        Parameters:
+        - particles: list of dictionaries returned by generate_aggregate()
+                     Must contain 'position' key with numpy array of 3D coordinates.
+        
+        Returns:
+        - Rg: float, the calculated radius of gyration.
+        """
+        # Extract all particle positions
+        positions = np.array([p['position'] for p in particles])
+        N = len(positions)
+        
+        # If there's only one particle, Rg is 0
+        if N <= 1:
+            return 0.0
+        
+        # Calculate the sum of squared distances between all unique pairs (i, j) where j > i
+        sum_sq_distances = 0.0
+        for i in range(N):
+            for j in range(i + 1, N):  # j > i ensures each pair is counted once
+                rij = euclidean(positions[i], positions[j])
+                sum_sq_distances += rij ** 2
+        
+        # Calculate Rg according to the formula
+        Rg = np.sqrt(sum_sq_distances / N)
+        
+        return Rg
+    
     def visualize_aggregate(self, particles, max_particles_for_spheres=200, figsize=(12, 9)):
         """
         Visualize a fractal aggregate in 3D.
