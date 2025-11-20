@@ -14,3 +14,4 @@ for name, member in inspect.getmembers(generator):
 print(f"\nHas calculate_shape_factor: {'Yes' if hasattr(generator, 'calculate_shape_factor') else 'No'}")
 print(f"Has calculate_radius_of_gyration: {'Yes' if hasattr(generator, 'calculate_radius_of_gyration') else 'No'}")
 print(f"Has generate_aggregate: {'Yes' if hasattr(generator, 'generate_aggregate') else 'No'}")
+print(f"Has calculate_structure_factor: {'Yes' if hasattr(generator, 'calculate_structure_factor') else 'No'}")

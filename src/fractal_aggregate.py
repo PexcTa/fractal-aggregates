@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial.distance import euclidean
 from tqdm import tqdm
+from scipy.spatial.distance import pdist
+from scipy.optimize import curve_fit
 
 class FractalAggregate:
     """
@@ -214,7 +216,7 @@ class FractalAggregate:
         print(f"  - Active particles: {sum(1 for p in particles if not p['inactive'])}")
         print(f"  - Inactive particles: {sum(1 for p in particles if p['inactive'])}")
         print(f"  - Inactivation probability p: {inactivation_probability}")
-        print(f"  - Overlap: {overlap} → center-to-center distance = {2.0 * (1 - overlap):.3f}")
+        print(f"  - Overlap: {overlap} -> center-to-center distance = {2.0 * (1 - overlap):.3f}")
         print(f"  - Bias factors: {bias_factors}")
         print(f"  - Random seed: {self.random_seed}")
         
@@ -329,14 +331,146 @@ class FractalAggregate:
         
         return Rg
     
-    def visualize_aggregate(self, particles, max_particles_for_spheres=200, figsize=(12, 9)):
+    def calculate_structure_factor(self, particles, q_min=0.01, q_max=10.0, n_q=100, 
+                                  R_particle=1.0, fit_range_factor=2.0, visualize=False):
+        """
+        Calculate the structure factor S(q) for a 3D particle aggregate as defined in Guesnet et al. (2019).
+        
+        Parameters:
+        - particles: list of dictionaries with 'position' keys (numpy arrays of 3D coordinates)
+        - q_min: float, minimum q value for calculation
+        - q_max: float, maximum q value for calculation
+        - n_q: int, number of q points in log space
+        - R_particle: float, radius of individual particles (default=1.0)
+        - fit_range_factor: float, multiplier for Rg to define fitting range: [1/Rg, fit_range_factor / R_particle]
+        - visualize: bool, whether to display the plot
+        
+        Returns:
+        - q_array: array of q values
+        - S_array: array of S(q) values
+        - Rg: float, radius of gyration of the aggregate
+        - alpha: float, fitted slope of ln(S(q)) vs ln(q)
+        - alpha_err: float, standard error of the fit
+        """
+        # Extract positions
+        positions = np.array([p['position'] for p in particles])
+        N = len(positions)
+        
+        if N <= 1:
+            raise ValueError("Need at least 2 particles to compute structure factor.")
+        
+        # Step 1: Calculate radius of gyration Rg
+        pairwise_distances = pdist(positions, metric='euclidean')
+        sum_sq_distances = np.sum(pairwise_distances ** 2)
+        Rg = np.sqrt(sum_sq_distances / N)
+        
+        # Step 2: Define q range (logarithmic)
+        q_array = np.logspace(np.log10(q_min), np.log10(q_max), n_q)
+        
+        # Step 3: Precompute all pairwise distances once
+        # Use the condensed form from pdist
+        r_ij = pairwise_distances  # Shape: (N*(N-1)/2,)
+        
+        # Step 4: Compute S(q) for each q using vectorized operations
+        S_array = np.zeros_like(q_array)
+        
+        # Vectorized sinc computation: sin(q * r_ij) / (q * r_ij)
+        # Handle q*r_ij = 0 case (r_ij=0) to avoid division by zero
+        for i, q in enumerate(q_array):
+            qr = q * r_ij
+            # Avoid division by zero where qr == 0
+            sinc_values = np.where(qr == 0, 1.0, np.sin(qr) / qr)
+            S_i = 1.0 + (1.0 / N) * np.sum(sinc_values)
+            S_array[i] = S_i
+        
+        # Step 5: Determine fitting range based on paper
+        # Paper suggests: 1/Rg < q < 1/R (where R=1.0)
+        q_fit_min = max(1.0 / Rg, q_min)
+        q_fit_max = min(1.0 / R_particle, q_max) * fit_range_factor
+        
+        # Filter data for fitting
+        mask = (q_array >= q_fit_min) & (q_array <= q_fit_max)
+        q_fit = q_array[mask]
+        S_fit = S_array[mask]
+        
+        # Remove any non-positive S(q) values (shouldn't happen but just in case)
+        valid_mask = S_fit > 0
+        q_fit = q_fit[valid_mask]
+        S_fit = S_fit[valid_mask]
+        
+        if len(q_fit) < 3:
+            raise ValueError(f"Not enough data points in fitting range [{q_fit_min:.3f}, {q_fit_max:.3f}]")
+        
+        # Step 6: Linear fit on log-log scale: ln(S(q)) = -α * ln(q) + C
+        def linear_model(log_q, alpha, c):
+            return -alpha * log_q + c  # Note: negative sign per Eq. (5)
+        
+        log_q = np.log(q_fit)
+        log_S = np.log(S_fit)
+        
+        popt, pcov = curve_fit(linear_model, log_q, log_S)
+        alpha, c = popt
+        alpha_err = np.sqrt(pcov[0, 0])  # Standard error of alpha
+        
+        # Step 7: Plot if requested
+        if visualize:
+            fig, ax = plt.subplots(figsize=(5, 4))
+            
+            # Full S(q) plot
+            ax.loglog(q_array, S_array, 'b-', linewidth=1.5, label='Structure Factor S(q)')
+            
+            # Highlight fitting region
+            ax.loglog(q_fit, S_fit, 'ro', markersize=5, label=f'Fit Region ({q_fit_min:.3f} < q < {q_fit_max:.3f})')
+            
+            # Plot fitted line
+            log_q_full = np.log(q_array)
+            log_S_pred = linear_model(log_q_full, alpha, c)
+            S_pred = np.exp(log_S_pred)
+            ax.loglog(q_array, S_pred, 'r--', linewidth=2, 
+                      label=f'Fit: α = {alpha:.4f} ± {alpha_err:.4f}')
+            
+            # Add vertical lines for fitting bounds
+            ax.axvline(x=q_fit_min, color='gray', linestyle=':', label=f'1/Rg = {1.0/Rg:.3f}')
+            ax.axvline(x=1.0/R_particle, color='gray', linestyle='-.', label='1/R = 1.0')
+            
+            ax.set_xlabel('Scattering Vector q (1/particle_radius)', fontsize=12)
+            ax.set_ylabel('Structure Factor S(q)', fontsize=12)
+            ax.set_title(f'Structure Factor of Fractal Aggregate\n'
+                         f'N={N}, Rg={Rg:.3f}, α={alpha:.4f}±{alpha_err:.4f}', fontsize=14)
+            
+            ax.grid(True, which="both", ls="-", alpha=0.2)
+            ax.legend(loc='upper right')
+            plt.tight_layout()
+            plt.show()
+        
+        # Print results
+        print(f"\nStructure Factor Analysis:")
+        print(f"  - Radius of gyration Rg = {Rg:.6f}")
+        print(f"  - Fitting range: q ∈ [{q_fit_min:.4f}, {q_fit_max:.4f}]")
+        print(f"  - Slope α = {alpha:.6f} ± {alpha_err:.6f}")
+        
+        # Determine fractal dimensions
+        if alpha <= 3.0:
+            df = alpha
+            ds = None
+            print(f"  - Mass fractal dimension df = α = {df:.6f}")
+            print(f"  - Surface fractal dimension ds = Not applicable (df ≤ 3)")
+        else:
+            df = 3.0
+            ds = 6.0 - alpha
+            print(f"  - Mass fractal dimension df = 3.0 (compact)")
+            print(f"  - Surface fractal dimension ds = 6 - α = {ds:.6f}")
+        
+        return q_array, S_array, Rg, alpha, alpha_err
+    
+    def visualize_aggregate(self, particles, max_particles_for_spheres=200, figsize=(5, 4)):
         """
         Visualize a fractal aggregate in 3D.
         
         Parameters:
         - particles: list of particle dictionaries
         - max_particles_for_spheres: int, max particles to render with spheres
-        - figsize: tuple, figure size
+        - figsize: tuple, figure size (smaller default: 5, 4)
         
         Returns:
         - fig, ax: matplotlib figure and axis objects
