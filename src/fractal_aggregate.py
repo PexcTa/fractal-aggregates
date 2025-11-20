@@ -1,4 +1,8 @@
 import numpy as np
+import matplotlib
+matplotlib.use('Qt5Agg')  # Or 'Qt5Agg' if you have Qt installed
+import matplotlib.pyplot as plt
+plt.rcParams['figure.autolayout'] = True
 import matplotlib.pyplot as plt
 from scipy.spatial.distance import euclidean
 from tqdm import tqdm
@@ -462,7 +466,147 @@ class FractalAggregate:
             print(f"  - Surface fractal dimension ds = 6 - α = {ds:.6f}")
         
         return q_array, S_array, Rg, alpha, alpha_err
-    
+    def calculate_and_plot_running_rg(self, particles, figsize=(5, 4), title=None, fit_start_N=5, fit_end_N=None, visualize=False):
+        """
+        Calculate the running radius of gyration (Rg) and optionally plot it against the number of particles N
+        on a log-log scale, following the methodology in Guesnet et al. (2019).
+        
+        The mass fractal dimension df is estimated from the slope of the linear region in this plot:
+        Rg ∝ N^(1/df)
+        
+        Parameters:
+        - particles: list of dictionaries returned by generate_aggregate()
+                    Must contain 'position' and 'added_step' keys.
+        - figsize: tuple, figure size. Default (5, 4)
+        - title: str, optional custom title for the plot
+        - fit_start_N: int, first N value to include in the linear fit. Default 5.
+        - fit_end_N: int or None, last N value to include in the linear fit. If None, uses all data up to N_total.
+        - visualize: bool, whether to display the plot. Default False.
+        
+        Returns:
+        - N_list: list of integers, number of particles at each step (from 1 to N_total)
+        - Rg_list: list of floats, radius of gyration at each step
+        - df: float, estimated mass fractal dimension from linear fit
+        - df_err: float, standard error of the df estimate from fit uncertainty
+        """
+        # Sort particles by their addition step to ensure chronological order
+        sorted_particles = sorted(particles, key=lambda p: p['added_step'])
+        
+        # Extract positions in order of addition
+        positions = [p['position'] for p in sorted_particles]
+        N_total = len(positions)
+        
+        # Initialize lists to store running N and Rg
+        N_list = list(range(1, N_total + 1))
+        Rg_list = []
+        
+        # Compute Rg incrementally using efficient vectorized operations
+        print("Computing running radius of gyration (Rg)...")
+        for n in range(1, N_total + 1):
+            if n == 1:
+                Rg = 0.0
+            else:
+                # Get positions of first n particles
+                current_positions = np.array(positions[:n])
+                
+                # Calculate all pairwise distances efficiently using pdist
+                # pdist returns condensed form: distances between pairs (i,j) where i < j
+                pairwise_distances = pdist(current_positions, metric='euclidean')
+                # Square all distances
+                sq_distances = pairwise_distances ** 2
+                # Sum all squared distances
+                sum_sq_distances = np.sum(sq_distances)
+                # Calculate Rg according to Eq. (2): Rg = sqrt( (1/N) * sum(r_ij^2) )
+                Rg = np.sqrt(sum_sq_distances) / n
+            
+            Rg_list.append(Rg)
+        
+        # Convert to numpy arrays for fitting
+        N_array = np.array(N_list)
+        Rg_array = np.array(Rg_list)
+        
+        # Define the range for fitting (start from fit_start_N, end at fit_end_N or N_total)
+        start_idx = max(fit_start_N - 1, 0)  # Convert to zero-based index
+        end_idx = min(fit_end_N, N_total) if fit_end_N is not None else N_total
+        end_idx -= 1  # Convert to zero-based index
+        
+        if start_idx >= end_idx:
+            raise ValueError(f"fit_start_N ({fit_start_N}) must be less than fit_end_N ({fit_end_N})")
+        
+        # Select data points for fitting
+        N_fit = N_array[start_idx:end_idx]
+        Rg_fit = Rg_array[start_idx:end_idx]
+        
+        # Filter out any zero or negative values to avoid log(0)
+        valid_mask = (N_fit > 0) & (Rg_fit > 0)
+        N_fit = N_fit[valid_mask]
+        Rg_fit = Rg_fit[valid_mask]
+        
+        if len(N_fit) < 3:
+            raise ValueError("Not enough valid data points for fitting after filtering.")
+        
+        # Log-transform the data for linear regression
+        log_N = np.log(N_fit)
+        log_Rg = np.log(Rg_fit)
+        
+        # Define linear model: log(Rg) = m * log(N) + c
+        def linear_model(x, m, c):
+            return m * x + c
+        
+        # Fit the model using scipy.optimize.curve_fit
+        popt, pcov = curve_fit(linear_model, log_N, log_Rg)
+        m, c = popt
+        m_err, c_err = np.sqrt(np.diag(pcov))
+        
+        # Mass fractal dimension df = 1/m since Rg ∝ N^(1/df) => log(Rg) = (1/df) * log(N) + const
+        df = 1.0 / m
+        df_err = m_err / (m**2)  # Error propagation: d(df)/dm = -1/m^2
+        
+        # Only create plot if visualize=True
+        if visualize:
+            fig, ax = plt.subplots(figsize=figsize)
+            
+            # Plot full running Rg
+            ax.loglog(N_list, Rg_list, 'b-', linewidth=1.0, alpha=0.7, label='Running Rg')
+            
+            # Highlight the fitted region
+            ax.loglog(N_fit, Rg_fit, 'ro', markersize=4, label=f'Fit Region (N={fit_start_N}-{end_idx+1})')
+            
+            # Plot the fitted line
+            log_N_full = np.log(N_array[start_idx:])
+            log_Rg_pred = linear_model(log_N_full, m, c)
+            Rg_pred = np.exp(log_Rg_pred)
+            ax.loglog(N_array[start_idx:], Rg_pred, 'r--', linewidth=2, 
+                    label=f'Fit: df = {df:.3f} ± {df_err:.3f}')
+            
+            # Add labels and title
+            ax.set_xlabel('Number of Particles (N)', fontsize=10)
+            ax.set_ylabel('Radius of Gyration (Rg)', fontsize=10)
+            if title is None:
+                title = f'Running Rg vs N\nFinal N={N_total}, Final Rg={Rg_list[-1]:.3f}, df={df:.3f}±{df_err:.3f}'
+            ax.set_title(title, fontsize=12)
+            
+            # Enable grid for better readability
+            ax.grid(True, which="both", ls="-", alpha=0.2)
+            
+            # Set limits to make the plot look cleaner
+            ax.set_xlim(left=1)
+            ax.set_ylim(bottom=1e-3)  # Avoid zero on log scale
+            
+            # Add legend
+            ax.legend(loc='lower right', fontsize=9)
+            
+            # Show plot
+            plt.tight_layout()
+            plt.show()
+        
+        print(f"\nFractal Dimension Analysis (Running Rg):")
+        print(f"  - Fitting range: N = {fit_start_N} to {end_idx+1}")
+        print(f"  - Slope (m) of log(Rg) vs log(N): {m:.5f} ± {m_err:.5f}")
+        print(f"  - Estimated mass fractal dimension df = 1/m = {df:.5f} ± {df_err:.5f}")
+        
+        return N_list, Rg_list, df, df_err
+
     def visualize_aggregate(self, particles, max_particles_for_spheres=200, figsize=(5, 4)):
         """
         Visualize a fractal aggregate in 3D.
@@ -517,7 +661,7 @@ class FractalAggregate:
                 ax.plot_surface(x, y, z, color='blue', alpha=0.1, rstride=1, cstride=1, linewidth=0)
             
             print(f"Rendered {len(particles)} transparent spheres (radius = 1.0)")
-        
+    
         # Ensure equal scaling on all axes
         ax.set_box_aspect([1, 1, 1])
         
