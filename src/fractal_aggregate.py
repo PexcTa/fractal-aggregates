@@ -8,6 +8,7 @@ from scipy.spatial.distance import euclidean
 from tqdm import tqdm
 from scipy.spatial.distance import pdist
 from scipy.optimize import curve_fit
+from scipy.spatial import ConvexHull
 
 class FractalAggregate:
     """
@@ -331,7 +332,7 @@ class FractalAggregate:
                 sum_sq_distances += rij ** 2
         
         # Calculate Rg according to the formula
-        Rg = np.sqrt(sum_sq_distances / N)
+        Rg = np.sqrt(sum_sq_distances) / N
         
         return Rg
     
@@ -366,7 +367,7 @@ class FractalAggregate:
         # Step 1: Calculate radius of gyration Rg
         pairwise_distances = pdist(positions, metric='euclidean')
         sum_sq_distances = np.sum(pairwise_distances ** 2)
-        Rg = np.sqrt(sum_sq_distances / N)
+        Rg = np.sqrt(sum_sq_distances) / N
         
         # Step 2: Define q range (logarithmic)
         q_array = np.logspace(np.log10(q_min), np.log10(q_max), n_q)
@@ -673,3 +674,251 @@ class FractalAggregate:
         plt.show()
         
         return fig, ax
+    def calculate_porosity(self, particles, particle_radius=1.0):
+        """
+        Calculate the porosity of a fractal aggregate.
+        Porosity (ϵ) is defined as:
+            ϵ = 1 - (Total Volume of Particles) / (Volume of Convex Hull)
+        Where:
+        - Total Volume of Particles = N * (4/3) * π * R³
+        - N is the number of particles
+        - R is the radius of each spherical particle (default = 1.0)
+        - Volume of Convex Hull is computed using scipy.spatial.ConvexHull
+        
+        Parameters:
+        - particles: list of dictionaries returned by generate_aggregate()
+                    Must contain 'position' key with numpy array of 3D coordinates.
+        - particle_radius: float, radius of each spherical particle. Default = 1.0.
+        
+        Returns:
+        - porosity: float, the calculated porosity (between 0 and 1)
+        - convex_hull_volume: float, volume of the convex hull enclosing all particles
+        - total_particle_volume: float, total volume occupied by all particles
+        """
+        # Extract all particle positions
+        positions = np.array([p['position'] for p in particles])
+        N = len(positions)
+        
+        if N == 0:
+            return 0.0, 0.0, 0.0
+        
+        # Calculate total volume of all particles
+        # Volume of one sphere = (4/3) * π * R^3
+        volume_per_particle = (4.0 / 3.0) * np.pi * (particle_radius ** 3)
+        total_particle_volume = N * volume_per_particle
+        
+        # Compute the convex hull of the particle positions
+        try:
+            hull = ConvexHull(positions)
+            convex_hull_volume = hull.volume
+        except Exception as e:
+            # Handle edge cases (e.g., all points collinear or coincident)
+            print(f"Warning: Could not compute convex hull: {e}")
+            # Fallback: Use bounding box volume as approximation
+            min_coords = np.min(positions, axis=0)
+            max_coords = np.max(positions, axis=0)
+            convex_hull_volume = np.prod(max_coords - min_coords)
+        
+        # Calculate porosity
+        # ϵ = 1 - (total_particle_volume / convex_hull_volume)
+        if convex_hull_volume <= 0:
+            porosity = 0.0
+        else:
+            porosity = 1.0 - (total_particle_volume / convex_hull_volume)
+        
+        # Ensure porosity is bounded between 0 and 1 (numerical errors can cause slight negative values)
+        porosity = max(0.0, min(1.0, porosity))
+        
+        return porosity, convex_hull_volume, total_particle_volume
+
+    def run_parameter_sweep_p(self, N=100, p_range=(0.0, 0.95), p_steps=10, samples_per_p=10, 
+                         bias_factors=(1, 1, 1), overlap=0.0, max_particles_for_spheres=200):
+        """
+        Run a parameter sweep over inactivation probability p.
+        
+        Generates multiple aggregates for each value of p in the specified range,
+        then calculates and stores the average metrics for each p value.
+        
+        Parameters:
+        - N: int, number of particles per aggregate
+        - p_range: tuple (min_p, max_p), range of inactivation probabilities to sweep
+        - p_steps: int, number of p values to sample in the range
+        - samples_per_p: int, number of aggregates to generate per p value
+        - bias_factors: tuple, growth bias factors (default: isotropic)
+        - overlap: float, particle overlap parameter
+        - max_particles_for_spheres: int, max particles to render with spheres for visualization
+        
+        Returns:
+        - results: dict containing arrays of p values and corresponding metrics
+        """
+        # Generate p values
+        p_values = np.linspace(p_range[0], p_range[1], p_steps)
+        
+        # Initialize result arrays
+        shape_factors = []
+        df_v1_values = []
+        df_v2_values = []
+        porosities = []
+        Rg_values = []
+        
+        print(f"Running parameter sweep over p values: {p_values}")
+        print(f"Generating {samples_per_p} aggregates per p value...")
+        
+        for p in tqdm(p_values, desc="Parameter sweep (p)"):
+            # Temporary storage for this p value
+            p_shape_factors = []
+            p_df_v1_values = []
+            p_df_v2_values = []
+            p_porosities = []
+            p_Rg_values = []
+            
+            for _ in range(samples_per_p):
+                # Generate aggregate
+                particles = self.generate_aggregate(
+                    N=N,
+                    bias_factors=bias_factors,
+                    overlap=overlap,
+                    inactivation_probability=p,
+                    max_particles_for_spheres=max_particles_for_spheres,
+                    visualize=False
+                )
+                
+                # Calculate metrics
+                sf = self.calculate_shape_factor(particles)
+                df_v1 = self.calculate_and_plot_running_rg(particles, visualize=False)[2]
+                q_array, S_array, Rg, alpha, alpha_err = self.calculate_structure_factor(particles, visualize=False)
+                porosity = self.calculate_porosity(particles)[0]
+                
+                # Store results
+                p_shape_factors.append(sf)
+                p_df_v1_values.append(df_v1)
+                p_df_v2_values.append(alpha)
+                p_porosities.append(porosity)
+                p_Rg_values.append(Rg)
+            
+            # Store average metrics for this p value
+            shape_factors.append(np.mean(p_shape_factors))
+            df_v1_values.append(np.mean(p_df_v1_values))
+            df_v2_values.append(np.mean(p_df_v2_values))
+            porosities.append(np.mean(p_porosities))
+            Rg_values.append(np.mean(p_Rg_values))
+        
+        # Store results in the class
+        results = {
+            'p_values': p_values,
+            'shape_factors': np.array(shape_factors),
+            'df_v1_values': np.array(df_v1_values),
+            'df_v2_values': np.array(df_v2_values),
+            'porosities': np.array(porosities),
+            'Rg_values': np.array(Rg_values),
+            'parameters': {
+                'N': N,
+                'bias_factors': bias_factors,
+                'overlap': overlap,
+                'samples_per_p': samples_per_p
+            }
+        }
+        
+        self.aggregates.append({
+            'type': 'parameter_sweep_p',
+            'results': results
+        })
+        
+        print("\nParameter sweep complete!")
+        return results
+
+    def run_parameter_sweep_N(self, N_range=(10, 1000), N_steps=10, samples_per_N=10, 
+                            p=0.0, bias_factors=(1, 1, 1), overlap=0.0, max_particles_for_spheres=200):
+        """
+        Run a parameter sweep over number of particles N.
+        
+        Generates multiple aggregates for each value of N in the specified range,
+        then calculates and stores the average metrics for each N value.
+        
+        Parameters:
+        - N_range: tuple (min_N, max_N), range of particle counts to sweep
+        - N_steps: int, number of N values to sample in the range
+        - samples_per_N: int, number of aggregates to generate per N value
+        - p: float, inactivation probability (fixed for this sweep)
+        - bias_factors: tuple, growth bias factors (default: isotropic)
+        - overlap: float, particle overlap parameter
+        - max_particles_for_spheres: int, max particles to render with spheres for visualization
+        
+        Returns:
+        - results: dict containing arrays of N values and corresponding metrics
+        """
+        # Generate N values (logarithmic spacing often makes more sense for particle counts)
+        N_values = np.round(np.logspace(np.log10(N_range[0]), np.log10(N_range[1]), N_steps)).astype(int)
+        
+        # Initialize result arrays
+        shape_factors = []
+        df_v1_values = []
+        df_v2_values = []
+        porosities = []
+        Rg_values = []
+        
+        print(f"Running parameter sweep over N values: {N_values}")
+        print(f"Generating {samples_per_N} aggregates per N value...")
+        
+        for N in tqdm(N_values, desc="Parameter sweep (N)"):
+            # Temporary storage for this N value
+            N_shape_factors = []
+            N_df_v1_values = []
+            N_df_v2_values = []
+            N_porosities = []
+            N_Rg_values = []
+            
+            for _ in range(samples_per_N):
+                # Generate aggregate
+                particles = self.generate_aggregate(
+                    N=int(N),
+                    bias_factors=bias_factors,
+                    overlap=overlap,
+                    inactivation_probability=p,
+                    max_particles_for_spheres=max_particles_for_spheres,
+                    visualize=False
+                )
+                
+                # Calculate metrics
+                sf = self.calculate_shape_factor(particles)
+                df_v1 = self.calculate_and_plot_running_rg(particles, visualize=False)[2]
+                q_array, S_array, Rg, alpha, alpha_err = self.calculate_structure_factor(particles, visualize=False)
+                porosity = self.calculate_porosity(particles)[0]
+                
+                # Store results
+                N_shape_factors.append(sf)
+                N_df_v1_values.append(df_v1)
+                N_df_v2_values.append(alpha)
+                N_porosities.append(porosity)
+                N_Rg_values.append(Rg)
+            
+            # Store average metrics for this N value
+            shape_factors.append(np.mean(N_shape_factors))
+            df_v1_values.append(np.mean(N_df_v1_values))
+            df_v2_values.append(np.mean(N_df_v2_values))
+            porosities.append(np.mean(N_porosities))
+            Rg_values.append(np.mean(N_Rg_values))
+        
+        # Store results in the class
+        results = {
+            'N_values': N_values,
+            'shape_factors': np.array(shape_factors),
+            'df_v1_values': np.array(df_v1_values),
+            'df_v2_values': np.array(df_v2_values),
+            'porosities': np.array(porosities),
+            'Rg_values': np.array(Rg_values),
+            'parameters': {
+                'p': p,
+                'bias_factors': bias_factors,
+                'overlap': overlap,
+                'samples_per_N': samples_per_N
+            }
+        }
+        
+        self.aggregates.append({
+            'type': 'parameter_sweep_N',
+            'results': results
+        })
+        
+        print("\nParameter sweep complete!")
+        return results
