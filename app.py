@@ -29,6 +29,11 @@ with tabs[0]:
     ## Introduction to Fractal Aggregates
     
     This application generates 3D fractal aggregates using the Porous Eden Model.
+                
+    The algorithm is based on the one described in (1) Guesnet, E.; Dendievel, R.; Jauffrès, D.; Martin, C. L.; Yrieix, B. A Growth Model for the Generation of Particle Aggregates with Tunable Fractal Dimension. Physica A: Statistical Mechanics and its Applications 2019, 513, 63–73. https://doi.org/10.1016/j.physa.2018.07.061.
+
+                
+    ## This is a work in progress. "Single Aggregate" tab works.  
     
     ### Mathematical Background
     
@@ -44,6 +49,9 @@ with tabs[0]:
     sqrt{\\frac{\\lambda_{\\text{max}}}{\\lambda_{\\text{min}}}}$
     
     where $\\lambda_{\\text{max}}$ and $\\lambda_{\\text{min}}$ are the maximum and minimum eigenvalues.
+                
+    ### To be continued... 
+                
     """)
 
 with tabs[1]:
