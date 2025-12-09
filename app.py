@@ -13,6 +13,21 @@ from fractal_generator import (
 
 st.title("Fractal Aggregate Generator")
 
+# After imports, before parameters
+mode = st.sidebar.selectbox("Mode", ["Single Aggregate", "Multiple Aggregates", "Agglomerates"])
+st.title(f"Fractal Aggregate Generator - {mode}")
+
+if mode == "Single Aggregate":
+    # Existing code stays here
+    N = st.slider("Number of particles", 10, 5000, 500)
+    p = st.slider("Inactivation probability", 0.0, 1.0, 0.05)
+    overlap = st.slider("Particle overlap", 0.0, 0.9, 0.0)
+    cell_size = st.slider("Cell size", 2.0, 10.0, 4.0)
+    
+    if st.button("Generate Aggregate"):
+        # Existing generation and display code
+
+
 # Parameters
 N = st.slider("Number of particles", 10, 5000, 500)
 p = st.slider("Inactivation probability", 0.0, 1.0, 0.05)
