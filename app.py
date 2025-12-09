@@ -3,12 +3,13 @@ import numpy as np
 from matplotlib import pyplot as plt
 from io import BytesIO
 
-# Copy ONLY these functions from fractals_source.txt:
-# - LinkedCellGrid class
-# - generate_fractal_aggregate function
-# - calculate_radius_of_gyration function
-# - calculate_shape_factor function
-# - _extract_particles function
+# Proper imports from fractal_generator
+from fractal_generator import (
+    LinkedCellGrid,
+    generate_fractal_aggregate,
+    calculate_radius_of_gyration,
+    calculate_shape_factor
+)
 
 st.title("Fractal Aggregate Generator")
 
