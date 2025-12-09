@@ -41,7 +41,7 @@ with tabs[0]:
     The shape factor is calculated from the eigenvalues of the inertia tensor:
     
     $\\text{Shape Factor} = \\
-sqrt{\\frac{\\lambda_{\\text{max}}}{\\lambda_{\\text{min}}}}$
+    sqrt{\\frac{\\lambda_{\\text{max}}}{\\lambda_{\\text{min}}}}$
     
     where $\\lambda_{\\text{max}}$ and $\\lambda_{\\text{min}}$ are the maximum and minimum eigenvalues.
     """)
