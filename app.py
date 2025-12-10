@@ -125,7 +125,7 @@ with col_viz:
             positions = np.array([p['position'] for p in st.session_state.result['particles']])
             radius = st.session_state.get('radius', 1.0)
             
-            if len(positions) <= 50:  # Only render proper spheres for small aggregates
+            if len(positions) <= 200:  # Only render proper spheres for small aggregates
                 def ms(x, y, z, radius, resolution=10):
                     """Return coordinates for plotting a sphere centered at (x,y,z)"""
                     u, v = np.mgrid[0:2*np.pi:resolution*2j, 0:np.pi:resolution*1j]
