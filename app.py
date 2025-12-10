@@ -294,8 +294,9 @@ with tabs[2]:
                 # Static visualization using matplotlib
                 fig = plt.figure(figsize=(8, 6))
                 ax = fig.add_subplot(111, projection='3d')
-                ax.scatter(positions[:,0], positions[:,1], positions[:,2], s=1, c='blue', alpha=0.8)
+                ax.scatter(positions[:,0], positions[:,1], positions[:,2], s=10, c='blue', alpha=0.8)
                 ax.set_box_aspect([1,1,1])
+                ax.set_proj_type('persp', focal_length=0.25)
                 ax.set_xlabel('X')
                 ax.set_ylabel('Y')
                 ax.set_zlabel('Z')
@@ -319,19 +320,19 @@ with tabs[2]:
                         fig.add_trace(go.Surface(
                             x=x_s, y=y_s, z=z_s,
                             colorscale=[[0, 'dodgerblue'], [1, 'dodgerblue']],
-                            opacity=0.8,
+                            opacity=1.0,
                             showscale=False,
-                            lighting=dict(ambient=0.5, diffuse=0.8, specular=0.5),
-                            lightposition=dict(x=100, y=200, z=0)
+                            #lighting=dict(ambient=0.5, diffuse=0.8, specular=0.5),
+                            #lightposition=dict(x=100, y=200, z=0)
                         ))
                 else:
                     fig.add_trace(go.Scatter3d(
                         x=positions[:,0], y=positions[:,1], z=positions[:,2],
                         mode='markers',
                         marker=dict(
-                            size=8 * radius,
+                            size=16 * radius,
                             color='dodgerblue',
-                            opacity=0.8
+                            opacity=0.9
                         )
                     ))
                 
@@ -408,9 +409,9 @@ with col_viz:
                     x=positions[:,0], y=positions[:,1], z=positions[:,2],
                     mode='markers',
                     marker=dict(
-                        size=8 * radius,  # Scale marker size by particle radius
+                        size=16 * radius,  # Scale marker size by particle radius
                         color='dodgerblue',
-                        opacity=0.8
+                        opacity=0.9
                     )
                 ))
             
