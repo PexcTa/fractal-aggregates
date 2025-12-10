@@ -121,41 +121,60 @@ with col_viz:
             st.pyplot(fig)
             
         else:  # Interactive 3D
-            # Plotly implementation
-            if len(positions) <= 500:
-                # Show spheres for small aggregates
-                x, y, z = [], [], []
+            fig = go.Figure()
+            positions = np.array([p['position'] for p in st.session_state.result['particles']])
+            
+            if len(positions) <= 100:  # Only render solid spheres for small aggregates
+                # Create Icosahedron mesh for each sphere (better performance than np.outer)
+                phi = (1 + np.sqrt(5)) / 2
+                vertices = np.array([
+                    [-1,  phi, 0], [1,  phi, 0], [-1, -phi, 0], [1, -phi, 0],
+                    [0, -1,  phi], [0, 1,  phi], [0, -1, -phi], [0, 1, -phi],
+                    [phi, 0, -1], [phi, 0, 1], [-phi, 0, -1], [-phi, 0, 1]
+                ])
+                faces = np.array([
+                    [0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11],
+                    [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8],
+                    [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9],
+                    [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]
+                ])
+                
+                # Normalize vertices
+                vertices = vertices / np.linalg.norm(vertices, axis=1)[:, None]
+                
                 for pos in positions:
-                    # Create sphere mesh
-                    u = np.linspace(0, 2 * np.pi, 10)
-                    v = np.linspace(0, np.pi, 10)
-                    x_sphere = pos[0] + radius * np.outer(np.cos(u), np.sin(v)).flatten()
-                    y_sphere = pos[1] + radius * np.outer(np.sin(u), np.sin(v)).flatten()
-                    z_sphere = pos[2] + radius * np.outer(np.ones_like(u), np.cos(v)).flatten()
-                    x.extend(x_sphere)
-                    y.extend(y_sphere)
-                    z.extend(z_sphere)
-                fig = go.Figure(data=[go.Scatter3d(
-                    x=x, y=y, z=z,
-                    mode='markers',
-                    marker=dict(size=2, color='blue', opacity=0.6)
-                )])
+                    # Scale and translate vertices
+                    verts = vertices * radius + pos
+                    fig.add_trace(go.Mesh3d(
+                        x=verts[:,0], y=verts[:,1], z=verts[:,2],
+                        i=faces[:,0], j=faces[:,1], k=faces[:,2],
+                        color='blue',
+                        opacity=0.8,
+                        flatshading=True,
+                        lighting=dict(ambient=0.5, diffuse=0.8, specular=0.2, roughness=0.6),
+                        lightposition=dict(x=100, y=0, z=200)
+                    ))
             else:
-                # Show points for large aggregates
-                fig = go.Figure(data=[go.Scatter3d(
+                # Use large scatter points for larger aggregates
+                fig.add_trace(go.Scatter3d(
                     x=positions[:,0], y=positions[:,1], z=positions[:,2],
                     mode='markers',
-                    marker=dict(size=3, color='blue', opacity=0.8)
-                )])
+                    marker=dict(
+                        size=5 * radius,  # Scale marker size with particle radius
+                        color='royalblue',
+                        opacity=0.8
+                    )
+                ))
             
             fig.update_layout(
                 scene=dict(
                     xaxis_title='X',
                     yaxis_title='Y',
                     zaxis_title='Z',
-                    aspectmode='cube'
+                    aspectmode='data'  # Better aspect ratio
                 ),
-                margin=dict(l=0, r=0, b=0, t=0)
+                margin=dict(l=0, r=0, b=0, t=0),
+                scene_camera=dict(eye=dict(x=1.5, y=1.5, z=1.5))
             )
             st.plotly_chart(fig, use_container_width=True)
         
