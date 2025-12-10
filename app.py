@@ -112,8 +112,9 @@ with col_viz:
             # Existing matplotlib code
             fig = plt.figure(figsize=(8, 6))
             ax = fig.add_subplot(111, projection='3d')
-            scatter = ax.scatter(positions[:,0], positions[:,1], positions[:,2], s=1, c='blue', alpha=0.8)
+            scatter = ax.scatter(positions[:,0], positions[:,1], positions[:,2], s=10, c='blue', alpha=0.8)
             ax.set_box_aspect([1,1,1])
+            ax.set_proj_type('ortho')
             ax.set_xlabel('X')
             ax.set_ylabel('Y')
             ax.set_zlabel('Z')
