@@ -1,5 +1,9 @@
 import numpy as np
 from scipy.spatial.distance import euclidean
+# Add these imports at the top of fractal_generator.py
+from scipy.optimize import curve_fit
+from scipy.spatial.distance import pdist
+from scipy.spatial import ConvexHull
 
 class LinkedCellGrid:
     def __init__(self, cell_size=8.0):
@@ -146,3 +150,104 @@ def calculate_shape_factor(particles_or_result):
     else:
         shape_factor = np.sqrt(lambda_max / lambda_min)
     return shape_factor
+
+# Add these functions at the bottom of fractal_generator.py
+
+def calculate_structure_factor(
+    particles_or_result,
+    q_min=0.01,
+    q_max=10.0,
+    n_q=100,
+    R_particle=1.0,
+    fit_range_factor=2.0,
+    visualize=False
+):
+    particles, _ = _extract_particles(particles_or_result)
+    positions = np.array([p['position'] for p in particles])
+    N = len(positions)
+    if N <= 1:
+        raise ValueError("Need at least 2 particles to compute structure factor.")
+    
+    # Calculate radius of gyration Rg
+    pairwise_distances = pdist(positions, metric='euclidean')
+    sum_sq_distances = np.sum(pairwise_distances ** 2)
+    Rg = np.sqrt(sum_sq_distances) / N
+    
+    # Define q range
+    q_array = np.logspace(np.log10(q_min), np.log10(q_max), n_q)
+    
+    # Precompute all pairwise distances
+    r_ij = pairwise_distances
+    
+    # Compute S(q)
+    S_array = np.zeros_like(q_array)
+    for i, q in enumerate(q_array):
+        qr = q * r_ij
+        sinc_values = np.where(qr == 0, 1.0, np.sin(qr) / qr)
+        S_i = 1.0 + (1.0 / N) * np.sum(sinc_values)
+        S_array[i] = S_i
+    
+    # Determine fitting range
+    q_fit_min = max(1.0 / Rg, q_min)
+    q_fit_max = min(1.0 / R_particle, q_max)
+    
+    # Filter data for fitting
+    mask = (q_array >= q_fit_min) & (q_array <= q_fit_max)
+    q_fit = q_array[mask]
+    S_fit = S_array[mask]
+    
+    # Remove non-positive values
+    valid_mask = S_fit > 0
+    q_fit = q_fit[valid_mask]
+    S_fit = S_fit[valid_mask]
+    
+    if len(q_fit) < 3:
+        alpha = np.nan
+        alpha_err = np.nan
+    else:
+        # Linear fit on log-log scale
+        log_q = np.log(q_fit)
+        log_S = np.log(S_fit)
+        
+        def linear_model(log_q, alpha, c):
+            return -alpha * log_q + c
+        
+        try:
+            popt, pcov = curve_fit(linear_model, log_q, log_S, p0=[1.0, 0.0])
+            alpha, c = popt
+            alpha_err = np.sqrt(pcov[0, 0])
+        except:
+            alpha = np.nan
+            alpha_err = np.nan
+    
+    return q_array, S_array, Rg, alpha, alpha_err, None, None
+
+def calculate_porosity(particles_or_result, particle_radius=1.0):
+    particles, _ = _extract_particles(particles_or_result)
+    positions = np.array([p['position'] for p in particles])
+    N = len(positions)
+    if N == 0:
+        return 0.0, 0.0, 0.0
+    
+    # Calculate total volume of all particles
+    volume_per_particle = (4.0 / 3.0) * np.pi * (particle_radius ** 3)
+    total_particle_volume = N * volume_per_particle
+    
+    # Compute convex hull
+    try:
+        hull = ConvexHull(positions)
+        convex_hull_volume = hull.volume
+    except:
+        # Fallback to bounding box
+        min_coords = np.min(positions, axis=0)
+        max_coords = np.max(positions, axis=0)
+        convex_hull_volume = np.prod(max_coords - min_coords)
+    
+    # Calculate porosity
+    if convex_hull_volume <= 0:
+        porosity = 0.0
+    else:
+        porosity = 1.0 - (total_particle_volume / convex_hull_volume)
+    
+    porosity = max(0.0, min(1.0, porosity))
+    return porosity, convex_hull_volume, total_particle_volume
