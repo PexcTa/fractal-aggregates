@@ -142,8 +142,8 @@ with col_viz:
                         colorscale=[[0, 'dodgerblue'], [1, 'dodgerblue']],
                         opacity=1,
                         showscale=False,
-                        lighting=dict(ambient=0.5, diffuse=0.8, specular=0.5),
-                        lightposition=dict(x=100, y=200, z=0)
+                        #lighting=dict(ambient=0.5, diffuse=0.8, specular=0.5),
+                        #lightposition=dict(x=100, y=200, z=0)
                     ))
             else:
                 # For larger aggregates, use scatter with size based on radius
