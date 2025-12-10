@@ -78,7 +78,7 @@ with tabs[1]:
         cell_size = st.slider("Cell size", 2.0, 10.0, 4.0, key='sin_agg_cellsize')
         st.caption("Spatial grid cell size for efficient collision detection.")
         
-        radius = st.slider("Particle radius", 0.5, 5.0, 1.0,key='sin_agg_rad')
+        radius = st.slider("Particle radius", 0.5, 5.0, 1.0, key='sin_agg_rad')
         st.caption("Radius of individual particles in the aggregate.")
         
         if st.button("Generate Aggregate"):
@@ -99,100 +99,97 @@ with tabs[1]:
             st.session_state.result = result
             st.session_state.Rg = Rg
             st.session_state.sf = sf
-            st.session_state.particles = result['particles']
-
-            with col_viz:
-                if 'result' in st.session_state:
-                    st.subheader("Visualization")
+            st.session_state.radius = radius
+    
+    # Visualization section (outside button handler)
+    with col_viz:
+        if 'result' in st.session_state:
+            st.subheader("Visualization")
+            
+            viz_type = st.radio("Visualization type", ["Static point cloud", "Interactive 3D (for N<201)"])
+            
+            positions = np.array([p['position'] for p in st.session_state.result['particles']])
+            radius = st.session_state.get('radius', 1.0)
+            
+            if viz_type == "Static point cloud":
+                # Existing matplotlib code
+                fig = plt.figure(figsize=(8, 6))
+                ax = fig.add_subplot(111, projection='3d')
+                scatter = ax.scatter(positions[:,0], positions[:,1], positions[:,2], s=10, c='blue', alpha=0.8)
+                ax.set_box_aspect([1,1,1])
+                ax.set_proj_type('persp', focal_length=0.25)
+                ax.set_xlabel('X')
+                ax.set_ylabel('Y')
+                ax.set_zlabel('Z')
+                plt.tight_layout()
+                st.pyplot(fig)
+                
+            else:  # Interactive 3D
+                fig = go.Figure()
+                
+                if len(positions) <= 200:  # Only render proper spheres for small aggregates
+                    def ms(x, y, z, radius, resolution=10):
+                        """Return coordinates for plotting a sphere centered at (x,y,z)"""
+                        u, v = np.mgrid[0:2*np.pi:resolution*2j, 0:np.pi:resolution*1j]
+                        X = radius * np.cos(u) * np.sin(v) + x
+                        Y = radius * np.sin(u) * np.sin(v) + y
+                        Z = radius * np.cos(v) + z
+                        return (X, Y, Z)
                     
-                    viz_type = st.radio("Visualization type", ["Static point cloud", "Interactive 3D (for N<201)"])
-                    
-                    positions = np.array([p['position'] for p in st.session_state.result['particles']])
-                    radius = st.session_state.get('radius', 1.0)
-                    
-                    if viz_type == "Static point cloud":
-                        # Existing matplotlib code
-                        fig = plt.figure(figsize=(8, 6))
-                        ax = fig.add_subplot(111, projection='3d')
-                        scatter = ax.scatter(positions[:,0], positions[:,1], positions[:,2], s=10, c='blue', alpha=0.8)
-                        ax.set_box_aspect([1,1,1])
-                        ax.set_proj_type('persp', focal_length=0.25)
-                        ax.set_xlabel('X')
-                        ax.set_ylabel('Y')
-                        ax.set_zlabel('Z')
-                        plt.tight_layout()
-                        st.pyplot(fig)
-                        
-                    else:  # Interactive 3D
-                        fig = go.Figure()
-                        positions = np.array([p['position'] for p in st.session_state.result['particles']])
-                        radius = st.session_state.get('radius', 1.0)
-                        
-                        if len(positions) <= 200:  # Only render proper spheres for small aggregates
-                            def ms(x, y, z, radius, resolution=10):
-                                """Return coordinates for plotting a sphere centered at (x,y,z)"""
-                                u, v = np.mgrid[0:2*np.pi:resolution*2j, 0:np.pi:resolution*1j]
-                                X = radius * np.cos(u) * np.sin(v) + x
-                                Y = radius * np.sin(u) * np.sin(v) + y
-                                Z = radius * np.cos(v) + z
-                                return (X, Y, Z)
-                            
-                            # Create a surface for each particle
-                            for pos in positions:
-                                x_s, y_s, z_s = ms(pos[0], pos[1], pos[2], radius, resolution=8)
-                                fig.add_trace(go.Surface(
-                                    x=x_s, y=y_s, z=z_s,
-                                    colorscale=[[0, 'dodgerblue'], [1, 'dodgerblue']],
-                                    opacity=1,
-                                    showscale=False,
-                                    #lighting=dict(ambient=0.5, diffuse=0.8, specular=0.5),
-                                    #lightposition=dict(x=100, y=200, z=0)
-                                ))
-                        else:
-                            # For larger aggregates, use scatter with size based on radius
-                            fig.add_trace(go.Scatter3d(
-                                x=positions[:,0], y=positions[:,1], z=positions[:,2],
-                                mode='markers',
-                                marker=dict(
-                                    size=16 * radius,  # Scale marker size by particle radius
-                                    color='dodgerblue',
-                                    opacity=0.9,
-                                    line=dict(
-                                    color='black', # Edge color
-                                    width=4                # Edge width in pixels
-                                    )
-                                )
-                            ))
-                        
-                        fig.update_layout(
-                            scene=dict(
-                                xaxis_title='X',
-                                yaxis_title='Y',
-                                zaxis_title='Z',
-                                aspectmode='data'
-                            ),
-                            margin=dict(l=0, r=0, b=0, t=0),
-                            scene_camera=dict(eye=dict(x=1.5, y=1.5, z=1.5))
-                        )
-                        st.plotly_chart(fig, use_container_width=True)
-                    
-                    # Metrics below visualization
-                    st.subheader("Aggregate Metrics")
-                    col1, col2 = st.columns(2)
-                    col1.metric("Radius of Gyration", f"{st.session_state.Rg:.4f}")
-                    col2.metric("Shape Factor", f"{st.session_state.sf:.4f}")
-                    
-                    # Save XYZ button
-                    if st.button("Save XYZ"):
-                        filename = export_to_xyz(st.session_state.particles)
-                        with open(filename, "rb") as f:
-                            st.download_button(
-                                label="Download XYZ file",
-                                data=f,
-                                file_name=filename,
-                                mime="text/plain"
+                    # Create a surface for each particle
+                    for pos in positions:
+                        x_s, y_s, z_s = ms(pos[0], pos[1], pos[2], radius, resolution=8)
+                        fig.add_trace(go.Surface(
+                            x=x_s, y=y_s, z=z_s,
+                            colorscale=[[0, 'dodgerblue'], [1, 'dodgerblue']],
+                            opacity=1,
+                            showscale=False,
+                        ))
+                else:
+                    # For larger aggregates, use scatter with size based on radius
+                    fig.add_trace(go.Scatter3d(
+                        x=positions[:,0], y=positions[:,1], z=positions[:,2],
+                        mode='markers',
+                        marker=dict(
+                            size=16 * radius,  # Scale marker size by particle radius
+                            color='dodgerblue',
+                            opacity=0.9,
+                            line=dict(
+                                color='black', # Edge color
+                                width=4                # Edge width in pixels
                             )
-                        st.success(f"Saved to {filename}")
+                        )
+                    ))
+                
+                fig.update_layout(
+                    scene=dict(
+                        xaxis_title='X',
+                        yaxis_title='Y',
+                        zaxis_title='Z',
+                        aspectmode='data'
+                    ),
+                    margin=dict(l=0, r=0, b=0, t=0),
+                    scene_camera=dict(eye=dict(x=1.5, y=1.5, z=1.5))
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            
+            # Metrics below visualization
+            st.subheader("Aggregate Metrics")
+            col1, col2 = st.columns(2)
+            col1.metric("Radius of Gyration", f"{st.session_state.Rg:.4f}")
+            col2.metric("Shape Factor", f"{st.session_state.sf:.4f}")
+            
+            # Save XYZ button
+            if st.button("Save XYZ"):
+                filename = export_to_xyz(st.session_state.result['particles'])
+                with open(filename, "rb") as f:
+                    st.download_button(
+                        label="Download XYZ file",
+                        data=f,
+                        file_name=filename,
+                        mime="text/plain"
+                    )
+                st.success(f"Saved to {filename}")
 
 with tabs[2]:
     st.title("Multiple Aggregates Generator")
