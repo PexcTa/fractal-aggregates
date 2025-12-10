@@ -64,19 +64,19 @@ with tabs[1]:
     with col_params:
         st.subheader("Generation Parameters")
         
-        N = st.slider("Number of particles", 10, 5000, 500)
+        N = st.slider("Number of particles", 10, 5000, 500, key='sin_agg_N')
         st.caption("Total particles in the aggregate. Larger values increase computation time.")
         
-        p = st.slider("Inactivation probability", 0.0, 1.0, 0.05)
+        p = st.slider("Inactivation probability", 0.0, 1.0, 0.05, key='sin_agg_p')
         st.caption("Probability that a particle becomes inactive after growth. Higher values create more branched structures.")
         
-        overlap = st.slider("Particle overlap", 0.0, 0.9, 0.0)
+        overlap = st.slider("Particle overlap", 0.0, 0.9, 0.0, key='sin_agg_ove')
         st.caption("Fraction of particle diameter allowed to overlap. 0.0 = hard spheres.")
         
-        cell_size = st.slider("Cell size", 2.0, 10.0, 4.0)
+        cell_size = st.slider("Cell size", 2.0, 10.0, 4.0, key='sin_agg_cellsize')
         st.caption("Spatial grid cell size for efficient collision detection.")
         
-        radius = st.slider("Particle radius", 0.5, 5.0, 1.0)
+        radius = st.slider("Particle radius", 0.5, 5.0, 1.0,key='sin_agg_rad')
         st.caption("Radius of individual particles in the aggregate.")
         
         if st.button("Generate Aggregate"):
@@ -105,13 +105,13 @@ with tabs[2]:
     # Parameters
     col1, col2 = st.columns(2)
     with col1:
-        num_aggregates = st.slider("Number of aggregates", 1, 50, 5)
-        N = st.slider("Particles per aggregate", 10, 1000, 100)
-        p = st.slider("Inactivation probability", 0.0, 1.0, 0.05)
+        num_aggregates = st.slider("Number of aggregates", 1, 50, 5, key='mult_agg_Nagg')
+        N = st.slider("Particles per aggregate", 10, 1000, 100, key='mult_agg_Npar')
+        p = st.slider("Inactivation probability", 0.0, 1.0, 0.05, key='mult_agg_p')
     with col2:
-        overlap = st.slider("Particle overlap", 0.0, 0.9, 0.0)
-        cell_size = st.slider("Cell size", 2.0, 10.0, 4.0)
-        radius = st.slider("Particle radius", 0.5, 5.0, 1.0)
+        overlap = st.slider("Particle overlap", 0.0, 0.9, 0.0, key='mult_agg_ove')
+        cell_size = st.slider("Cell size", 2.0, 10.0, 4.0, key='mult_agg_cellsize')
+        radius = st.slider("Particle radius", 0.5, 5.0, 1.0, key='mult_agg_rad')
     
     if st.button("Generate Multiple Aggregates"):
         with st.spinner("Generating aggregates..."):
