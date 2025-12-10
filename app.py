@@ -1,6 +1,7 @@
 import streamlit as st
 import numpy as np
 from matplotlib import pyplot as plt
+import plotly.graph_objects as go
 from io import BytesIO
 import os
 from fractal_generator import (
@@ -98,14 +99,19 @@ with tabs[1]:
             st.session_state.sf = sf
             st.session_state.particles = result['particles']
     
-    with col_viz:
-        if 'result' in st.session_state:
-            st.subheader("Visualization")
-            
-            # Plot
+with col_viz:
+    if 'result' in st.session_state:
+        st.subheader("Visualization")
+        
+        viz_type = st.radio("Visualization type", ["Static point cloud", "Interactive 3D"])
+        
+        positions = np.array([p['position'] for p in st.session_state.result['particles']])
+        radius = st.session_state.get('radius', 1.0)
+        
+        if viz_type == "Static point cloud":
+            # Existing matplotlib code
             fig = plt.figure(figsize=(8, 6))
             ax = fig.add_subplot(111, projection='3d')
-            positions = np.array([p['position'] for p in st.session_state.result['particles']])
             scatter = ax.scatter(positions[:,0], positions[:,1], positions[:,2], s=1, c='blue', alpha=0.8)
             ax.set_box_aspect([1,1,1])
             ax.set_xlabel('X')
@@ -114,20 +120,59 @@ with tabs[1]:
             plt.tight_layout()
             st.pyplot(fig)
             
-            # Metrics below visualization
-            st.subheader("Aggregate Metrics")
-            col1, col2 = st.columns(2)
-            col1.metric("Radius of Gyration", f"{st.session_state.Rg:.4f}")
-            col2.metric("Shape Factor", f"{st.session_state.sf:.4f}")
+        else:  # Interactive 3D
+            # Plotly implementation
+            if len(positions) <= 500:
+                # Show spheres for small aggregates
+                x, y, z = [], [], []
+                for pos in positions:
+                    # Create sphere mesh
+                    u = np.linspace(0, 2 * np.pi, 10)
+                    v = np.linspace(0, np.pi, 10)
+                    x_sphere = pos[0] + radius * np.outer(np.cos(u), np.sin(v)).flatten()
+                    y_sphere = pos[1] + radius * np.outer(np.sin(u), np.sin(v)).flatten()
+                    z_sphere = pos[2] + radius * np.outer(np.ones_like(u), np.cos(v)).flatten()
+                    x.extend(x_sphere)
+                    y.extend(y_sphere)
+                    z.extend(z_sphere)
+                fig = go.Figure(data=[go.Scatter3d(
+                    x=x, y=y, z=z,
+                    mode='markers',
+                    marker=dict(size=2, color='blue', opacity=0.6)
+                )])
+            else:
+                # Show points for large aggregates
+                fig = go.Figure(data=[go.Scatter3d(
+                    x=positions[:,0], y=positions[:,1], z=positions[:,2],
+                    mode='markers',
+                    marker=dict(size=3, color='blue', opacity=0.8)
+                )])
             
-            # Save XYZ button
-            if st.button("Save XYZ"):
-                filename = export_to_xyz(st.session_state.particles)
-                with open(filename, "rb") as f:
-                    st.download_button(
-                        label="Download XYZ file",
-                        data=f,
-                        file_name=filename,
-                        mime="text/plain"
-                    )
-                st.success(f"Saved to {filename}")
+            fig.update_layout(
+                scene=dict(
+                    xaxis_title='X',
+                    yaxis_title='Y',
+                    zaxis_title='Z',
+                    aspectmode='cube'
+                ),
+                margin=dict(l=0, r=0, b=0, t=0)
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Metrics below visualization
+        st.subheader("Aggregate Metrics")
+        col1, col2 = st.columns(2)
+        col1.metric("Radius of Gyration", f"{st.session_state.Rg:.4f}")
+        col2.metric("Shape Factor", f"{st.session_state.sf:.4f}")
+        
+        # Save XYZ button
+        if st.button("Save XYZ"):
+            filename = export_to_xyz(st.session_state.particles)
+            with open(filename, "rb") as f:
+                st.download_button(
+                    label="Download XYZ file",
+                    data=f,
+                    file_name=filename,
+                    mime="text/plain"
+                )
+            st.success(f"Saved to {filename}")
