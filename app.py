@@ -125,39 +125,34 @@ with col_viz:
             positions = np.array([p['position'] for p in st.session_state.result['particles']])
             radius = st.session_state.get('radius', 1.0)
             
-            if len(positions) <= 100:
-                # Render solid spheres using Mesh3d
-                phi = (1 + np.sqrt(5)) / 2
-                vertices = np.array([
-                    [-1,  phi, 0], [1,  phi, 0], [-1, -phi, 0], [1, -phi, 0],
-                    [0, -1,  phi], [0, 1,  phi], [0, -1, -phi], [0, 1, -phi],
-                    [ phi, 0, -1], [ phi, 0, 1], [-phi, 0, -1], [-phi, 0, 1]
-                ])
-                faces = np.array([
-                    [0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11],
-                    [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8],
-                    [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9],
-                    [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]
-                ])
-                vertices = vertices / np.linalg.norm(vertices, axis=1)[:, None]
+            if len(positions) <= 50:  # Only render proper spheres for small aggregates
+                def ms(x, y, z, radius, resolution=10):
+                    """Return coordinates for plotting a sphere centered at (x,y,z)"""
+                    u, v = np.mgrid[0:2*np.pi:resolution*2j, 0:np.pi:resolution*1j]
+                    X = radius * np.cos(u) * np.sin(v) + x
+                    Y = radius * np.sin(u) * np.sin(v) + y
+                    Z = radius * np.cos(v) + z
+                    return (X, Y, Z)
                 
+                # Create a surface for each particle
                 for pos in positions:
-                    verts = vertices * radius + pos
-                    fig.add_trace(go.Mesh3d(
-                        x=verts[:,0], y=verts[:,1], z=verts[:,2],
-                        i=faces[:,0], j=faces[:,1], k=faces[:,2],
-                        color='blue',
+                    x_s, y_s, z_s = ms(pos[0], pos[1], pos[2], radius, resolution=8)
+                    fig.add_trace(go.Surface(
+                        x=x_s, y=y_s, z=z_s,
+                        colorscale=[[0, 'dodgerblue'], [1, 'dodgerblue']],
                         opacity=0.8,
-                        flatshading=True
+                        showscale=False,
+                        lighting=dict(ambient=0.5, diffuse=0.8, specular=0.5),
+                        lightposition=dict(x=100, y=200, z=0)
                     ))
             else:
-                # Use scatter points for larger aggregates
+                # For larger aggregates, use scatter with size based on radius
                 fig.add_trace(go.Scatter3d(
                     x=positions[:,0], y=positions[:,1], z=positions[:,2],
                     mode='markers',
                     marker=dict(
-                        size=5 * radius,
-                        color='royalblue',
+                        size=8 * radius,  # Scale marker size by particle radius
+                        color='dodgerblue',
                         opacity=0.8
                     )
                 ))
@@ -169,7 +164,8 @@ with col_viz:
                     zaxis_title='Z',
                     aspectmode='data'
                 ),
-                margin=dict(l=0, r=0, b=0, t=0)
+                margin=dict(l=0, r=0, b=0, t=0),
+                scene_camera=dict(eye=dict(x=1.5, y=1.5, z=1.5))
             )
             st.plotly_chart(fig, use_container_width=True)
         
