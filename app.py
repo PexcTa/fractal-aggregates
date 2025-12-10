@@ -120,61 +120,45 @@ with col_viz:
             plt.tight_layout()
             st.pyplot(fig)
             
-        else:  # Interactive 3D
+        # Replace the current Plotly sphere code with this optimized version:
+        if viz_type == "Interactive 3D":
             fig = go.Figure()
             positions = np.array([p['position'] for p in st.session_state.result['particles']])
+            radius = st.session_state.get('radius', 1.0)
             
-            if len(positions) <= 100:  # Only render solid spheres for small aggregates
-                # Create Icosahedron mesh for each sphere (better performance than np.outer)
-                phi = (1 + np.sqrt(5)) / 2
-                vertices = np.array([
-                    [-1,  phi, 0], [1,  phi, 0], [-1, -phi, 0], [1, -phi, 0],
-                    [0, -1,  phi], [0, 1,  phi], [0, -1, -phi], [0, 1, -phi],
-                    [phi, 0, -1], [phi, 0, 1], [-phi, 0, -1], [-phi, 0, 1]
-                ])
-                faces = np.array([
-                    [0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11],
-                    [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8],
-                    [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9],
-                    [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]
-                ])
-                
-                # Normalize vertices
-                vertices = vertices / np.linalg.norm(vertices, axis=1)[:, None]
-                
-                for pos in positions:
-                    # Scale and translate vertices
-                    verts = vertices * radius + pos
-                    fig.add_trace(go.Mesh3d(
-                        x=verts[:,0], y=verts[:,1], z=verts[:,2],
-                        i=faces[:,0], j=faces[:,1], k=faces[:,2],
-                        color='blue',
-                        opacity=0.8,
-                        flatshading=True,
-                        lighting=dict(ambient=0.5, diffuse=0.8, specular=0.2, roughness=0.6),
-                        lightposition=dict(x=100, y=0, z=200)
-                    ))
-            else:
-                # Use large scatter points for larger aggregates
+            if len(positions) <= 100:
+                # Optimized solid spheres using scatter3d with size + lighting
                 fig.add_trace(go.Scatter3d(
                     x=positions[:,0], y=positions[:,1], z=positions[:,2],
                     mode='markers',
                     marker=dict(
-                        size=5 * radius,  # Scale marker size with particle radius
+                        size=2 * radius * 10,  # Scale to visual size
+                        color='dodgerblue',
+                        opacity=0.8,
+                        line=dict(width=1, color='darkblue'),
+                        symbol='circle'
+                    ),
+                    lighting=dict(ambient=0.6, diffuse=0.8, specular=0.7, roughness=0.3),
+                    lightposition=dict(x=100, y=0, z=200)
+                ))
+            else:
+                # Points for larger aggregates
+                fig.add_trace(go.Scatter3d(
+                    x=positions[:,0], y=positions[:,1], z=positions[:,2],
+                    mode='markers',
+                    marker=dict(
+                        size=3 * radius,
                         color='royalblue',
-                        opacity=0.8
+                        opacity=0.6
                     )
                 ))
             
             fig.update_layout(
                 scene=dict(
-                    xaxis_title='X',
-                    yaxis_title='Y',
-                    zaxis_title='Z',
-                    aspectmode='data'  # Better aspect ratio
+                    xaxis_title='X', yaxis_title='Y', zaxis_title='Z',
+                    aspectmode='data'
                 ),
-                margin=dict(l=0, r=0, b=0, t=0),
-                scene_camera=dict(eye=dict(x=1.5, y=1.5, z=1.5))
+                margin=dict(l=0, r=0, b=0, t=0)
             )
             st.plotly_chart(fig, use_container_width=True)
         
