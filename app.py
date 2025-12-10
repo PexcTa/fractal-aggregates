@@ -29,16 +29,17 @@ tabs = st.tabs(["Introduction", "Single Aggregate", "Multiple Aggregates", "Aggl
 with tabs[0]:
     st.title("Fractal Aggregate Generator")
     st.markdown("""
-    ## Introduction to Fractal Aggregates
+    ## Introduction (Work in Progress)
     
-    This application generates 3D fractal aggregates using the Porous Eden Model.
-                
-    The algorithm is based on the one described in (1) Guesnet, E.; Dendievel, R.; Jauffrès, D.; Martin, C. L.; Yrieix, B. A Growth Model for the Generation of Particle Aggregates with Tunable Fractal Dimension. Physica A: Statistical Mechanics and its Applications 2019, 513, 63–73. https://doi.org/10.1016/j.physa.2018.07.061.
+    Particles aggregate. It's what they do. They might form separately and stick together, like soot does, or they might grow on top of each other, like cancer tumours. The pattern of aggregation determines morphology, and morphology can be critically important for real-world properties, like mobility in the environment. Sometimes, it's important to be able to describe and simulate particle aggregates.
+    There are a few approaches towards simulating aggregation. A few excellent introductory articles and reviews are listed below in the Bibliography section.$^{1-3}$
+    The code under the hood of this app is based on the Porous Eden model as described by Guesnet et al.$^4$ The approach is agnostic of physics. In other words, it is purely geometry-based. The simulated structures are mainly useful for scattering data analysis. They are also aesthetically pleasing.         
 
-                
-    ## This is a work in progress. "Single Aggregate" tab works.  
+    ### The Algorithm 
+
+    Describe the algorithm here.
     
-    ### Mathematical Background
+    ### Relevant Mathematical Background
     
     The radius of gyration $R_g$ characterizes the size of the aggregate:
     
@@ -53,7 +54,14 @@ with tabs[0]:
     
     where $\\lambda_{\\text{max}}$ and $\\lambda_{\\text{min}}$ are the maximum and minimum eigenvalues.
                 
-    ### To be continued... 
+    ### References
+    [4] Guesnet, E.; Dendievel, R.; Jauffrès, D.; Martin, C. L.; Yrieix, B. A Growth Model for the Generation of Particle Aggregates with Tunable Fractal Dimension. Physica A: Statistical Mechanics and its Applications 2019, 513, 63–73. https://doi.org/10.1016/j.physa.2018.07.061.
+                
+    ### About the Author
+    This application was developed by Boris V. Kramar, PhD, while at Lomonosov Moscow State University (Radiochemistry division).
+    The algorithm is largely based on that described by Guesnet et al.$^4$ Much of the boilerplate code was written using an LLM-based assisant (Qwen3-Max). 
+    The full version of this code was used for a project on amorphous thorium dioxide. You can read the paper once it's published! There will be a link here: 
+    Visit Boris's personal website here: <link TBA>
                 
     """)
 
