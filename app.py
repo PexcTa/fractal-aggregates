@@ -98,12 +98,72 @@ with tabs[1]:
             st.session_state.Rg = Rg
             st.session_state.sf = sf
             st.session_state.particles = result['particles']
+
+with tabs[2]:
+    st.title("Multiple Aggregates Generator")
     
+    # Parameters
+    col1, col2 = st.columns(2)
+    with col1:
+        num_aggregates = st.slider("Number of aggregates", 1, 50, 5)
+        N = st.slider("Particles per aggregate", 10, 1000, 100)
+        p = st.slider("Inactivation probability", 0.0, 1.0, 0.05)
+    with col2:
+        overlap = st.slider("Particle overlap", 0.0, 0.9, 0.0)
+        cell_size = st.slider("Cell size", 2.0, 10.0, 4.0)
+        radius = st.slider("Particle radius", 0.5, 5.0, 1.0)
+    
+    if st.button("Generate Multiple Aggregates"):
+        with st.spinner("Generating aggregates..."):
+            results = []
+            metrics = {'Rg': [], 'shape_factor': []}
+            
+            for i in range(num_aggregates):
+                seed = 42 + i  # Deterministic but varied seeds
+                result = generate_fractal_aggregate(
+                    N=N,
+                    radius=radius,
+                    inactivation_probability=p,
+                    overlap=overlap,
+                    cell_size=cell_size,
+                    random_seed=seed,
+                    visualize=False
+                )
+                Rg = calculate_radius_of_gyration(result)
+                sf = calculate_shape_factor(result)
+                
+                results.append(result)
+                metrics['Rg'].append(Rg)
+                metrics['shape_factor'].append(sf)
+            
+            st.session_state.multiple_results = results
+            st.session_state.multiple_metrics = metrics
+            
+            # Show metrics distribution
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
+            ax1.hist(metrics['Rg'], bins=10, alpha=0.7)
+            ax1.set_title('Radius of Gyration Distribution')
+            ax1.set_xlabel('Rg')
+            ax1.set_ylabel('Frequency')
+            
+            ax2.hist(metrics['shape_factor'], bins=10, alpha=0.7, color='orange')
+            ax2.set_title('Shape Factor Distribution')
+            ax2.set_xlabel('Shape Factor')
+            ax2.set_ylabel('Frequency')
+            
+            st.pyplot(fig)
+            
+            # Summary statistics
+            st.subheader("Summary Statistics")
+            col1, col2 = st.columns(2)
+            col1.metric("Mean Rg", f"{np.mean(metrics['Rg']):.4f}")
+            col2.metric("Mean Shape Factor", f"{np.mean(metrics['shape_factor']):.4f}")
+
 with col_viz:
     if 'result' in st.session_state:
         st.subheader("Visualization")
         
-        viz_type = st.radio("Visualization type", ["Static point cloud", "Interactive 3D"])
+        viz_type = st.radio("Visualization type", ["Static point cloud", "Interactive 3D (for N<201)"])
         
         positions = np.array([p['position'] for p in st.session_state.result['particles']])
         radius = st.session_state.get('radius', 1.0)
