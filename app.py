@@ -219,6 +219,141 @@ with tabs[2]:
                 col4.metric("Mean Porosity", f"{np.mean(valid_porosity):.4f}")
             else:
                 col4.warning("No valid porosity values")
+    
+    # Aggregate Visualization Section
+    if 'multiple_results' in st.session_state:
+        st.markdown("---")
+        st.subheader("Aggregate Visualization")
+        st.caption("Select an aggregate to visualize based on its properties")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            metric_selection = st.selectbox("Sort by metric", 
+                                           ["Shape Factor", "Radius of Gyration (Rg)", "Mass Fractal Dimension (df)"])
+        
+        with col2:
+            sort_direction = st.radio("Direction", ["Lowest", "Highest"])
+        
+        with col3:
+            viz_type_agg = st.radio("Visualization type", ["Static point cloud", "Interactive 3D"])
+        
+        if st.button("Visualize Selected Aggregate"):
+            # Find the index of the aggregate to visualize
+            metrics_list = st.session_state.multiple_metrics
+            if metric_selection == "Shape Factor":
+                values = metrics_list['shape_factor']
+            elif metric_selection == "Radius of Gyration (Rg)":
+                values = metrics_list['Rg']
+            else:  # Mass Fractal Dimension
+                values = metrics_list['df_v2']
+            
+            # Filter out NaN values and get valid indices
+            valid_indices = [i for i, v in enumerate(values) if not np.isnan(v)]
+            valid_values = [values[i] for i in valid_indices]
+            
+            if not valid_values:
+                st.error("No valid values available for the selected metric.")
+            else:
+                # Find the index to visualize
+                if sort_direction == "Lowest":
+                    idx_to_visualize = valid_indices[np.argmin(valid_values)]
+                else:
+                    idx_to_visualize = valid_indices[np.argmax(valid_values)]
+                
+                # Get the selected aggregate
+                selected_aggregate = st.session_state.multiple_results[idx_to_visualize]
+                selected_metric_value = valid_values[np.argmin(valid_values)] if sort_direction == "Lowest" else valid_values[np.argmax(valid_values)]
+                
+                # Store in session state for visualization
+                st.session_state.selected_aggregate = {
+                    'particles': selected_aggregate['particles'],
+                    'parameters': selected_aggregate.get('parameters', {}),
+                    'metrics': {
+                        'shape_factor': metrics_list['shape_factor'][idx_to_visualize],
+                        'Rg': metrics_list['Rg'][idx_to_visualize],
+                        'df_v2': metrics_list['df_v2'][idx_to_visualize],
+                        'porosity': metrics_list['porosity'][idx_to_visualize]
+                    },
+                    'metric_name': metric_selection,
+                    'metric_value': selected_metric_value,
+                    'sort_direction': sort_direction
+                }
+        
+        # Display the visualization if an aggregate has been selected
+        if 'selected_aggregate' in st.session_state:
+            selected = st.session_state.selected_aggregate
+            st.subheader(f"Aggregate with {sort_direction} {metric_selection}")
+            st.caption(f"Value: {selected['metric_value']:.4f}")
+            
+            # Get particle positions
+            positions = np.array([p['position'] for p in selected['particles']])
+            radius = selected['parameters'].get('radius', 1.0)
+            
+            if viz_type_agg == "Static point cloud":
+                # Static visualization using matplotlib
+                fig = plt.figure(figsize=(8, 6))
+                ax = fig.add_subplot(111, projection='3d')
+                ax.scatter(positions[:,0], positions[:,1], positions[:,2], s=1, c='blue', alpha=0.8)
+                ax.set_box_aspect([1,1,1])
+                ax.set_xlabel('X')
+                ax.set_ylabel('Y')
+                ax.set_zlabel('Z')
+                plt.tight_layout()
+                st.pyplot(fig)
+                
+            else:  # Interactive 3D
+                # Interactive visualization using Plotly
+                fig = go.Figure()
+                if len(positions) <= 50:
+                    def ms(x, y, z, radius, resolution=8):
+                        """Return coordinates for plotting a sphere centered at (x,y,z)"""
+                        u, v = np.mgrid[0:2*np.pi:resolution*2j, 0:np.pi:resolution*1j]
+                        X = radius * np.cos(u) * np.sin(v) + x
+                        Y = radius * np.sin(u) * np.sin(v) + y
+                        Z = radius * np.cos(v) + z
+                        return (X, Y, Z)
+                    
+                    for pos in positions:
+                        x_s, y_s, z_s = ms(pos[0], pos[1], pos[2], radius, resolution=8)
+                        fig.add_trace(go.Surface(
+                            x=x_s, y=y_s, z=z_s,
+                            colorscale=[[0, 'dodgerblue'], [1, 'dodgerblue']],
+                            opacity=0.8,
+                            showscale=False,
+                            lighting=dict(ambient=0.5, diffuse=0.8, specular=0.5),
+                            lightposition=dict(x=100, y=200, z=0)
+                        ))
+                else:
+                    fig.add_trace(go.Scatter3d(
+                        x=positions[:,0], y=positions[:,1], z=positions[:,2],
+                        mode='markers',
+                        marker=dict(
+                            size=8 * radius,
+                            color='dodgerblue',
+                            opacity=0.8
+                        )
+                    ))
+                
+                fig.update_layout(
+                    scene=dict(
+                        xaxis_title='X',
+                        yaxis_title='Y',
+                        zaxis_title='Z',
+                        aspectmode='data'
+                    ),
+                    margin=dict(l=0, r=0, b=0, t=0),
+                    scene_camera=dict(eye=dict(x=1.5, y=1.5, z=1.5))
+                )
+                st.plotly_chart(fig, use_container_width=True)
+                
+            # Display metrics for the selected aggregate
+            st.subheader("Selected Aggregate Metrics")
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric("Shape Factor", f"{selected['metrics']['shape_factor']:.4f}")
+            col2.metric("Rg", f"{selected['metrics']['Rg']:.4f}")
+            col3.metric("Mass Fractal Dim", f"{selected['metrics']['df_v2']:.4f}")
+            col4.metric("Porosity", f"{selected['metrics']['porosity']:.4f}")
 
 with col_viz:
     if 'result' in st.session_state:
