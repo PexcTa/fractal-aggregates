@@ -596,19 +596,19 @@ with tabs[2]:
                     
                     # Store in session state for visualization
                     st.session_state.selected_aggregate = {
-                        'full_result': selected_aggregate,  # This contains 'particles', 'parameters', etc.
-                        'parameters': selected_aggregate.get('parameters', {}),  # Still keep this for convenience,
-                        'metrics': {
-                            'shape_factor': metrics_list['shape_factor'][idx_to_visualize],
-                            'Rg': metrics_list['Rg'][idx_to_visualize],
-                            'df_v2': metrics_list['df_v2'][idx_to_visualize],
-                            'porosity': metrics_list['porosity'][idx_to_visualize]
-                        },
-                        'metric_name': metric_selection,
-                        'metric_value': selected_metric_value,
-                        'sort_direction': sort_direction,
-                        'total_N': selected_aggregate.get('parameters', {}).get('N', len(selected_aggregate['particles']))
-                    }
+                            'particles': selected_aggregate['particles'],
+                            'parameters': selected_aggregate.get('parameters', {}),
+                            'metrics': {
+                                'shape_factor': metrics_list['shape_factor'][idx_to_visualize],
+                                'Rg': metrics_list['Rg'][idx_to_visualize],
+                                'df_v2': metrics_list['df_v2'][idx_to_visualize],
+                                'porosity': metrics_list['porosity'][idx_to_visualize]
+                            },
+                            'metric_name': metric_selection,
+                            'metric_value': selected_metric_value,
+                            'sort_direction': sort_direction,
+                            'total_N': selected_aggregate.get('parameters', {}).get('N', len(selected_aggregate['particles']))
+                        }
         with viz_col:
             # Display the visualization if an aggregate has been selected
             if 'selected_aggregate' in st.session_state:
@@ -618,7 +618,8 @@ with tabs[2]:
                 
                 # Get particle positions and radius
                 positions = np.array([p['position'] for p in selected['particles']])
-                radius = selected['parameters'].get('radius', 1.0)
+                # FIXED: Safe access to radius parameter
+                radius = selected.get('parameters', {}).get('radius', 1.0)
                 total_N = selected.get('total_N', len(selected['particles']))
                 
                 # Display visualization based on selection
