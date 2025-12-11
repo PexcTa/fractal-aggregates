@@ -419,13 +419,19 @@ with tabs[2]:
             
         col1, col2 = st.columns(2)
         with col1:
-            num_aggregates = st.slider("Number of aggregates", 1, 50, 5)
+            num_aggregates = st.slider("Number of aggregates", 1, 500, 5)
+            st.caption("Total number of aggregates to generate. Larger values increases computation time.")
             N = st.slider("Particles per aggregate", 10, 1000, 100)
+            st.caption("Total number of particles in the aggregate. Larger values increases aggregate size and computation time.")
             p = st.slider("Inactivation probability", 0.0, 1.0, 0.05)
+            st.caption("The probability to inactivate a particle after another one attaches. Large p increases branching.")
         with col2:
             overlap = st.slider("Particle overlap", 0.0, 0.9, 0.0)
+            st.caption("The degree to which particles are allowed to overlap. At overlap = 0, particles are hard spheres.")
             cell_size = st.slider("Cell size", 2.0, 10.0, 4.0)
+            st.caption("The size of the cell in the grid for neighbor search. Affects computation time. Should be about 2x-4x the radius.")
             radius = st.slider("Particle radius", 0.5, 5.0, 1.0)
+            st.caption("Particle radius. Unitless because all metrics are scaled to the same units. Meaningful if you plan to work in q-space.")
         
         if st.button("Generate Multiple Aggregates"):
             with st.spinner("Generating aggregates... This may take a while for large N."):
