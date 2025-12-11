@@ -543,145 +543,138 @@ with tabs[2]:
         st.markdown("---")
         st.subheader("Aggregate Visualization")
         st.caption("Select an aggregate to visualize based on its properties")
+
+        controls_col, viz_col = st.columns([1, 2])
         
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
+        with controls_col:
             metric_selection = st.selectbox("Sort by metric", 
                                         ["Shape Factor", "Radius of Gyration (Rg)", "Mass Fractal Dimension (df)"])
-        
-        with col2:
+
             sort_direction = st.radio("Direction", ["Lowest", "Highest"])
+            viz_type_agg = st.selectbox("Visualization type", 
+                                   ["Static point cloud", "3D point cloud", "3D spheres (N<201)"])
         
-        if st.button("Visualize Selected Aggregate"):
-            # Find the index of the aggregate to visualize
-            metrics_list = st.session_state.multiple_metrics
-            if metric_selection == "Shape Factor":
-                values = metrics_list['shape_factor']
-            elif metric_selection == "Radius of Gyration (Rg)":
-                values = metrics_list['Rg']
-            else:  # Mass Fractal Dimension
-                values = metrics_list['df_v2']
-            
-            # Filter out NaN values and get valid indices
-            valid_indices = [i for i, v in enumerate(values) if not np.isnan(v)]
-            valid_values = [values[i] for i in valid_indices]
-            
-            if not valid_values:
-                st.error("No valid values available for the selected metric.")
-            else:
-                # Find the index to visualize
-                if sort_direction == "Lowest":
-                    idx_to_visualize = valid_indices[np.argmin(valid_values)]
-                else:
-                    idx_to_visualize = valid_indices[np.argmax(valid_values)]
-                
-                # Get the selected aggregate
-                selected_aggregate = st.session_state.multiple_results[idx_to_visualize]
-                selected_metric_value = valid_values[np.argmin(valid_values)] if sort_direction == "Lowest" else valid_values[np.argmax(valid_values)]
-                
-                # Store in session state for visualization
-                st.session_state.selected_aggregate = {
-                    'particles': selected_aggregate['particles'],
-                    'parameters': selected_aggregate.get('parameters', {}),
-                    'metrics': {
-                        'shape_factor': metrics_list['shape_factor'][idx_to_visualize],
-                        'Rg': metrics_list['Rg'][idx_to_visualize],
-                        'df_v2': metrics_list['df_v2'][idx_to_visualize],
-                        'porosity': metrics_list['porosity'][idx_to_visualize]
-                    },
-                    'metric_name': metric_selection,
-                    'metric_value': selected_metric_value,
-                    'sort_direction': sort_direction,
-                    'total_N': selected_aggregate['parameters'].get('N', len(selected_aggregate['particles']))
-                }
+            color_opt_agg = st.selectbox("Color by", ["blue", "addition order", "activity"])
         
-        # Display the visualization if an aggregate has been selected
-        if 'selected_aggregate' in st.session_state:
-            selected = st.session_state.selected_aggregate
-            st.subheader(f"Aggregate with {sort_direction} {metric_selection}")
-            st.caption(f"Value: {selected['metric_value']:.4f}")
-            
-            # Visualization options
-            col_viz1, col_viz2 = st.columns(2)
-            
-            with col_viz1:
-                viz_type_agg = st.selectbox("Visualization type", 
-                                        ["Static point cloud", "3D point cloud", "3D spheres (N<201)"],
-                                        key="agg_viz_type")
-                color_opt_agg = st.selectbox("Color by", ["blue", "addition order", "activity"], 
-                                            key="agg_color_opt")
-            
-            # Get particle positions and radius
-            positions = np.array([p['position'] for p in selected['particles']])
-            radius = selected['parameters'].get('radius', 1.0)
-            total_N = selected.get('total_N', len(selected['particles']))
-            
-            # Display visualization based on selection
-            if viz_type_agg == "Static point cloud":
-                fig = plot_static(positions, color_opt_agg, selected['particles'], radius, total_N)
-                st.pyplot(fig)
-            elif viz_type_agg == "3D point cloud":
-                fig = plot_plotly_points(positions, color_opt_agg, selected['particles'], radius, total_N)
-                st.plotly_chart(fig, use_container_width=True, key=f"agg_viz_point_{color_opt_agg}")
-            else:  # 3D spheres (N<201)
-                if len(positions) <= 200:
-                    fig = plot_plotly_spheres(positions, color_opt_agg, selected['particles'], radius, total_N)
-                    st.plotly_chart(fig, use_container_width=True, key=f"agg_viz_spheres_{color_opt_agg}")
+            if st.button("Visualize Selected Aggregate"):
+                # Find the index of the aggregate to visualize
+                metrics_list = st.session_state.multiple_metrics
+                if metric_selection == "Shape Factor":
+                    values = metrics_list['shape_factor']
+                elif metric_selection == "Radius of Gyration (Rg)":
+                    values = metrics_list['Rg']
+                else:  # Mass Fractal Dimension
+                    values = metrics_list['df_v2']
+                
+                # Filter out NaN values and get valid indices
+                valid_indices = [i for i, v in enumerate(values) if not np.isnan(v)]
+                valid_values = [values[i] for i in valid_indices]
+                
+                if not valid_values:
+                    st.error("No valid values available for the selected metric.")
                 else:
-                    st.warning("This type of visualisation is not currently supported for an aggregate composed of more than 200 particles. Please choose a different type of visualisation or generate a different aggregate")
-            
-            # Display metrics for the selected aggregate
-            st.subheader("Selected Aggregate Metrics")
-            col1, col2, col3, col4 = st.columns(4)
-            col1.metric("Shape Factor", f"{selected['metrics']['shape_factor']:.4f}")
-            col2.metric("Rg", f"{selected['metrics']['Rg']:.4f}")
-            col3.metric("Mass Fractal Dim", f"{selected['metrics']['df_v2']:.4f}")
-            col4.metric("Porosity", f"{selected['metrics']['porosity']:.4f}")
+                    # Find the index to visualize
+                    if sort_direction == "Lowest":
+                        idx_to_visualize = valid_indices[np.argmin(valid_values)]
+                    else:
+                        idx_to_visualize = valid_indices[np.argmax(valid_values)]
+                    
+                    # Get the selected aggregate
+                    selected_aggregate = st.session_state.multiple_results[idx_to_visualize]
+                    selected_metric_value = valid_values[np.argmin(valid_values)] if sort_direction == "Lowest" else valid_values[np.argmax(valid_values)]
+                    
+                    # Store in session state for visualization
+                    st.session_state.selected_aggregate = {
+                        'particles': selected_aggregate['particles'],
+                        'parameters': selected_aggregate.get('parameters', {}),
+                        'metrics': {
+                            'shape_factor': metrics_list['shape_factor'][idx_to_visualize],
+                            'Rg': metrics_list['Rg'][idx_to_visualize],
+                            'df_v2': metrics_list['df_v2'][idx_to_visualize],
+                            'porosity': metrics_list['porosity'][idx_to_visualize]
+                        },
+                        'metric_name': metric_selection,
+                        'metric_value': selected_metric_value,
+                        'sort_direction': sort_direction,
+                        'total_N': selected_aggregate['parameters'].get('N', len(selected_aggregate['particles']))
+                    }
+        with viz_col:
+            # Display the visualization if an aggregate has been selected
+            if 'selected_aggregate' in st.session_state:
+                selected = st.session_state.selected_aggregate
+                st.subheader(f"Aggregate with {sort_direction} {metric_selection}")
+                st.caption(f"Value: {selected['metric_value']:.4f}")
+                
+                # Get particle positions and radius
+                positions = np.array([p['position'] for p in selected['particles']])
+                radius = selected['parameters'].get('radius', 1.0)
+                total_N = selected.get('total_N', len(selected['particles']))
+                
+                # Display visualization based on selection
+                if viz_type_agg == "Static point cloud":
+                    fig = plot_static(positions, color_opt_agg, selected['particles'], radius, total_N)
+                    st.pyplot(fig)
+                elif viz_type_agg == "3D point cloud":
+                    fig = plot_plotly_points(positions, color_opt_agg, selected['particles'], radius, total_N)
+                    st.plotly_chart(fig, use_container_width=True, key=f"agg_viz_point_{color_opt_agg}")
+                else:  # 3D spheres (N<201)
+                    if len(positions) <= 200:
+                        fig = plot_plotly_spheres(positions, color_opt_agg, selected['particles'], radius, total_N)
+                        st.plotly_chart(fig, use_container_width=True, key=f"agg_viz_spheres_{color_opt_agg}")
+                    else:
+                        st.warning("This type of visualisation is not currently supported for an aggregate composed of more than 200 particles. Please choose a different type of visualisation or generate a different aggregate")
+                
+                # Display metrics for the selected aggregate
+                st.subheader("Selected Aggregate Metrics")
+                col1, col2, col3, col4 = st.columns(4)
+                col1.metric("Shape Factor", f"{selected['metrics']['shape_factor']:.4f}")
+                col2.metric("Rg", f"{selected['metrics']['Rg']:.4f}")
+                col3.metric("Mass Fractal Dim", f"{selected['metrics']['df_v2']:.4f}")
+                col4.metric("Porosity", f"{selected['metrics']['porosity']:.4f}")
 
-            # Save buttons
-            col1, col2 = st.columns(2)
+                # Save buttons
+                col1, col2 = st.columns(2)
 
-            with col1:
-                if st.button("Save XYZ (Selected)"):
-                    selected = st.session_state.selected_aggregate
-                    filename = f"aggregate_{selected['sort_direction']}_{selected['metric_name'].replace(' ', '_')}.xyz"
-                    
-                    # Create XYZ content
-                    xyz_content = f"{len(selected['particles'])}\n"
-                    xyz_content += "Fractal aggregate generated by Streamlit app\n"
-                    for p in selected['particles']:
-                        pos = p['position']
-                        xyz_content += f"C {pos[0]:.6f} {pos[1]:.6f} {pos[2]:.6f}\n"
-                    
-                    st.download_button(
-                        label="Download Selected Aggregate",
-                        data=xyz_content,
-                        file_name=filename,
-                        mime="text/plain"
-                    )
+                with col1:
+                    if st.button("Save XYZ (Selected)"):
+                        selected = st.session_state.selected_aggregate
+                        filename = f"aggregate_{selected['sort_direction']}_{selected['metric_name'].replace(' ', '_')}.xyz"
+                        
+                        # Create XYZ content
+                        xyz_content = f"{len(selected['particles'])}\n"
+                        xyz_content += "Fractal aggregate generated by Streamlit app\n"
+                        for p in selected['particles']:
+                            pos = p['position']
+                            xyz_content += f"C {pos[0]:.6f} {pos[1]:.6f} {pos[2]:.6f}\n"
+                        
+                        st.download_button(
+                            label="Download Selected Aggregate",
+                            data=xyz_content,
+                            file_name=filename,
+                            mime="text/plain"
+                        )
 
-            with col2:
-                if st.button("Save All (ZIP)"):
-                    import zipfile
-                    from io import BytesIO
-                    
-                    zip_buffer = BytesIO()
-                    with zipfile.ZipFile(zip_buffer, "w") as zip_file:
-                        for i, result in enumerate(st.session_state.multiple_results):
-                            # Create XYZ content
-                            xyz_content = f"{len(result['particles'])}\n"
-                            xyz_content += f"Fractal aggregate #{i+1} from batch generation\n"
-                            for p in result['particles']:
-                                pos = p['position']
-                                xyz_content += f"C {pos[0]:.6f} {pos[1]:.6f} {pos[2]:.6f}\n"
-                            
-                            # Add to zip
-                            zip_file.writestr(f"aggregate_{i+1}.xyz", xyz_content)
-                    
-                    st.download_button(
-                        label="Download All Aggregates (ZIP)",
-                        data=zip_buffer.getvalue(),
-                        file_name="all_aggregates.zip",
-                        mime="application/zip"
-                    )
+                with col2:
+                    if st.button("Save All (ZIP)"):
+                        import zipfile
+                        from io import BytesIO
+                        
+                        zip_buffer = BytesIO()
+                        with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+                            for i, result in enumerate(st.session_state.multiple_results):
+                                # Create XYZ content
+                                xyz_content = f"{len(result['particles'])}\n"
+                                xyz_content += f"Fractal aggregate #{i+1} from batch generation\n"
+                                for p in result['particles']:
+                                    pos = p['position']
+                                    xyz_content += f"C {pos[0]:.6f} {pos[1]:.6f} {pos[2]:.6f}\n"
+                                
+                                # Add to zip
+                                zip_file.writestr(f"aggregate_{i+1}.xyz", xyz_content)
+                        
+                        st.download_button(
+                            label="Download All Aggregates (ZIP)",
+                            data=zip_buffer.getvalue(),
+                            file_name="all_aggregates.zip",
+                            mime="application/zip"
+                        )
