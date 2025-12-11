@@ -541,12 +541,14 @@ with tabs[2]:
     # Aggregate Visualization Section
     if 'multiple_results' in st.session_state:
         st.markdown("---")
-        st.subheader("Aggregate Visualization")
-        st.caption("Select an aggregate to visualize based on its properties")
+        st.subheader("Aggregate Visualization", text_alignment='center')
+        st.caption("Select an aggregate to visualize based on its properties", text_alignment='center')
 
         controls_col, viz_col = st.columns([1, 1])
         
         with controls_col:
+            st.subheader("Select metric and visualisation settings")
+            st.caption("There should be a sensible caption here eventually")
             metric_selection = st.selectbox("Sort by metric", 
                                         ["Shape Factor", "Radius of Gyration (Rg)", "Mass Fractal Dimension (df)"])
 
