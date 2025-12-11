@@ -596,8 +596,8 @@ with tabs[2]:
                     
                     # Store in session state for visualization
                     st.session_state.selected_aggregate = {
-                        'particles': selected_aggregate['particles'],
-                        'parameters': selected_aggregate.get('parameters', {}),
+                        'full_result': selected_aggregate,  # This contains 'particles', 'parameters', etc.
+                        'parameters': selected_aggregate.get('parameters', {}),  # Still keep this for convenience,
                         'metrics': {
                             'shape_factor': metrics_list['shape_factor'][idx_to_visualize],
                             'Rg': metrics_list['Rg'][idx_to_visualize],
@@ -607,7 +607,7 @@ with tabs[2]:
                         'metric_name': metric_selection,
                         'metric_value': selected_metric_value,
                         'sort_direction': sort_direction,
-                        'total_N': selected_aggregate['parameters'].get('N', len(selected_aggregate['particles']))
+                        'total_N': selected_aggregate.get('parameters', {}).get('N', len(selected_aggregate['particles']))
                     }
         with viz_col:
             # Display the visualization if an aggregate has been selected
