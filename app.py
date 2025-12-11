@@ -544,7 +544,7 @@ with tabs[2]:
         st.subheader("Aggregate Visualization")
         st.caption("Select an aggregate to visualize based on its properties")
 
-        controls_col, viz_col = st.columns([1, 2])
+        controls_col, viz_col = st.columns([1, 1])
         
         with controls_col:
             metric_selection = st.selectbox("Sort by metric", 
