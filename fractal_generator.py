@@ -54,9 +54,8 @@ def generate_fractal_aggregate(
     inactivation_probability=0.0,
     cell_size=8.0,
     max_particles_for_spheres=200,
-    visualize=True,
-    store_intermediate_states=False,  # New parameter
-    sampling_interval=0.05  # Sample every 5% of growth
+    visualize=False,
+    sample_interval=0.05  # Sample every 5% of growth
 ):
     np.random.seed(random_seed)
     particles = []
@@ -84,9 +83,9 @@ def generate_fractal_aggregate(
             if distance < effective_distance:
                 return False
         return True
-    # Initialize storage for intermediate states if needed
+    # Initialize storage for intermediate states
     intermediate_states = []
-    next_sample_point = sampling_interval
+    next_sample_point = sample_interval
     step = 1
     while len(particles) < N:
         active_particles = [p for p in particles if not p['inactive']]
@@ -106,15 +105,15 @@ def generate_fractal_aggregate(
                 selected_particle['inactive'] = True
             step += 1
 
-        if store_intermediate_states and len(particles) / N >= next_sample_point:
-            # Deep copy current particles
+        if len(particles) / N >= next_sample_point:
+            # Deep copy particles for this state
             current_state = [{
                 'position': p['position'].copy(),
                 'added_step': p['added_step'],
                 'inactive': p['inactive']
             } for p in particles]
             intermediate_states.append(current_state)
-            next_sample_point += sampling_interval
+            next_sample_point += sample_interval
 
         # Final state should always be stored
     final_state = [{
@@ -125,9 +124,10 @@ def generate_fractal_aggregate(
     intermediate_states.append(final_state)
 
     result = {
-        'particles': particles}
-    if store_intermediate_states:
-        result['intermediate_states'] = intermediate_states
+        'particles': particles,
+       ' intermediate_states' : intermediate_states,
+        'total_N': N  # Store the requested total number of particles
+    }
     return result
 
 def calculate_radius_of_gyration(particles_or_result):

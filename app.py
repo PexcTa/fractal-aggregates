@@ -68,27 +68,27 @@ with tabs[0]:
                 
     """)
 
-def get_colors(color_opt, particles, max_step):
-    """Get colors based on selection option"""
+def get_colors(color_opt, particles, total_N):
+    """Get colors based on selection option, normalized to total_N"""
     if color_opt == "blue":
         return ['blue'] * len(particles)
     elif color_opt == "addition order":
         steps = np.array([p['added_step'] for p in particles])
-        norm_steps = steps / max_step if max_step > 0 else steps
+        # Normalize against total_N, not current max
+        norm_steps = steps / total_N if total_N > 0 else steps
         return plt.cm.magma(norm_steps)
     elif color_opt == "activity":
         colors = []
         for p in particles:
-            colors.append('orange' if not p['inactive'] else 'gray')
+            colors.append('orange' if not p.get('inactive', False) else 'gray')
         return colors
     return ['blue'] * len(particles)
 
-def plot_static(positions, color_opt, particles):
+def plot_static(positions, color_opt, particles, total_N):
     fig = plt.figure(figsize=(6, 6))
     ax = fig.add_subplot(111, projection='3d')
     
-    max_step = max(p['added_step'] for p in particles)
-    colors = get_colors(color_opt, particles, max_step)
+    colors = get_colors(color_opt, particles, total_N)
     
     scatter = ax.scatter(
         positions[:,0], positions[:,1], positions[:,2],
@@ -98,63 +98,71 @@ def plot_static(positions, color_opt, particles):
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
-    st.pyplot(fig)
+    
+    # Add legends based on color mode
+    if color_opt == "blue":
+        ax.legend(['particle'], loc='upper right')
+    elif color_opt == "addition order":
+        # Create colorbar
+        sm = plt.cm.ScalarMappable(cmap=plt.cm.magma, 
+                                 norm=plt.Normalize(vmin=0, vmax=1))
+        sm.set_array([])
+        cbar = plt.colorbar(sm, ax=ax, shrink=0.5)
+        cbar.set_ticks([0, 1])
+        cbar.set_ticklabels(['oldest', 'newest'])
+    elif color_opt == "activity":
+        from matplotlib.lines import Line2D
+        legend_elements = [
+            Line2D([0], [0], marker='o', color='w', markerfacecolor='orange', markersize=8, label='Active'),
+            Line2D([0], [0], marker='o', color='w', markerfacecolor='gray', markersize=8, label='Inactive')
+        ]
+        ax.legend(handles=legend_elements, loc='upper right')
+    
+    return fig
 
-def plot_plotly_points(positions, color_opt, particles, radius):
+def plot_plotly_points(positions, color_opt, particles, radius, total_N):
     fig = go.Figure()
     
-    max_step = max(p['added_step'] for p in particles)
-    colors = get_colors(color_opt, particles, max_step)
+    colors = get_colors(color_opt, particles, total_N)
     
-    fig.add_trace(go.Scatter3d(
-        x=positions[:,0], y=positions[:,1], z=positions[:,2],
-        mode='markers',
-        marker=dict(
-            size=8 * radius,
-            color=[f'rgba({c[0]*255},{c[1]*255},{c[2]*255},{c[3]})' if isinstance(c, tuple) else c for c in colors],
-            opacity=0.8,
-            line=dict(color='black', width=0.5)
-        )
-    ))
-    
-    fig.update_layout(
-        scene=dict(
-            xaxis_title='X',
-            yaxis_title='Y',
-            zaxis_title='Z',
-            aspectmode='data'
-        ),
-        margin=dict(l=0, r=0, b=0, t=0),
-        scene_camera=dict(eye=dict(x=1.5, y=1.5, z=1.5))
-    )
-    st.plotly_chart(fig, use_container_width=True)
-
-def plot_plotly_spheres(positions, color_opt, particles, radius):
-    fig = go.Figure()
-    
-    max_step = max(p['added_step'] for p in particles)
-    colors = get_colors(color_opt, particles, max_step)
-    
-    def ms(x, y, z, radius, resolution=8):
-        u, v = np.mgrid[0:2*np.pi:resolution*2j, 0:np.pi:resolution*1j]
-        X = radius * np.cos(u) * np.sin(v) + x
-        Y = radius * np.sin(u) * np.sin(v) + y
-        Z = radius * np.cos(v) + z
-        return (X, Y, Z)
-    
-    for i, pos in enumerate(positions):
-        color = colors[i]
-        if isinstance(color, tuple) and len(color) == 4:
-            color = f'rgba({color[0]*255},{color[1]*255},{color[2]*255},{color[3]})'
-        elif isinstance(color, np.ndarray) and len(color) == 4:
-            color = f'rgba({color[0]*255},{color[1]*255},{color[2]*255},{color[3]})'
+    if color_opt == "activity":
+        # Create separate traces for active/inactive particles
+        active_mask = np.array([not p.get('inactive', False) for p in particles])
+        inactive_mask = ~active_mask
         
-        x_s, y_s, z_s = ms(pos[0], pos[1], pos[2], radius, resolution=8)
-        fig.add_trace(go.Surface(
-            x=x_s, y=y_s, z=z_s,
-            colorscale=[[0, color], [1, color]],
-            opacity=1,
-            showscale=False
+        if np.any(active_mask):
+            fig.add_trace(go.Scatter3d(
+                x=positions[active_mask,0], y=positions[active_mask,1], z=positions[active_mask,2],
+                mode='markers',
+                marker=dict(size=8 * radius, color='orange', opacity=0.8),
+                name='Active'
+            ))
+        if np.any(inactive_mask):
+            fig.add_trace(go.Scatter3d(
+                x=positions[inactive_mask,0], y=positions[inactive_mask,1], z=positions[inactive_mask,2],
+                mode='markers',
+                marker=dict(size=8 * radius, color='gray', opacity=0.8),
+                name='Inactive'
+            ))
+    else:
+        # Single trace for other color modes
+        fig.add_trace(go.Scatter3d(
+            x=positions[:,0], y=positions[:,1], z=positions[:,2],
+            mode='markers',
+            marker=dict(
+                size=8 * radius,
+                color=[f'rgba({c[0]*255},{c[1]*255},{c[2]*255},{c[3]})' if isinstance(c, tuple) else c for c in colors],
+                opacity=0.8,
+                line=dict(color='black', width=0.5),
+                colorbar=dict(
+                    title="Addition Order",
+                    tickvals=[0, 1],
+                    ticktext=["oldest", "newest"]
+                ) if color_opt == "addition order" else None,
+                colorscale="Magma" if color_opt == "addition order" else None
+            ),
+            name='particle' if color_opt == "blue" else None,
+            showlegend=(color_opt == "blue")
         ))
     
     fig.update_layout(
@@ -167,7 +175,97 @@ def plot_plotly_spheres(positions, color_opt, particles, radius):
         margin=dict(l=0, r=0, b=0, t=0),
         scene_camera=dict(eye=dict(x=1.5, y=1.5, z=1.5))
     )
-    st.plotly_chart(fig, use_container_width=True)
+    return fig
+
+def plot_plotly_spheres(positions, color_opt, particles, radius, total_N):
+    fig = go.Figure()
+    
+    colors = get_colors(color_opt, particles, total_N)
+    
+    def ms(x, y, z, radius, resolution=8):
+        u, v = np.mgrid[0:2*np.pi:resolution*2j, 0:np.pi:resolution*1j]
+        X = radius * np.cos(u) * np.sin(v) + x
+        Y = radius * np.sin(u) * np.sin(v) + y
+        Z = radius * np.cos(v) + z
+        return (X, Y, Z)
+    
+    if color_opt == "activity":
+        # Separate traces for active/inactive
+        active_mask = np.array([not p.get('inactive', False) for p in particles])
+        inactive_mask = ~active_mask
+        
+        if np.any(active_mask):
+            for pos in positions[active_mask]:
+                x_s, y_s, z_s = ms(pos[0], pos[1], pos[2], radius, resolution=8)
+                fig.add_trace(go.Surface(
+                    x=x_s, y=y_s, z=z_s,
+                    colorscale=[[0, 'orange'], [1, 'orange']],
+                    opacity=1,
+                    showscale=False,
+                    name='Active',
+                    showlegend=True
+                ))
+        if np.any(inactive_mask):
+            for pos in positions[inactive_mask]:
+                x_s, y_s, z_s = ms(pos[0], pos[1], pos[2], radius, resolution=8)
+                fig.add_trace(go.Surface(
+                    x=x_s, y=y_s, z=z_s,
+                    colorscale=[[0, 'gray'], [1, 'gray']],
+                    opacity=1,
+                    showscale=False,
+                    name='Inactive',
+                    showlegend=True
+                ))
+    else:
+        # Single color mode or addition order
+        for i, pos in enumerate(positions):
+            color = colors[i]
+            if isinstance(color, tuple) and len(color) == 4:
+                color = f'rgba({color[0]*255},{color[1]*255},{color[2]*255},{color[3]})'
+            elif isinstance(color, np.ndarray) and len(color) == 4:
+                color = f'rgba({color[0]*255},{color[1]*255},{color[2]*255},{color[3]})'
+            
+            x_s, y_s, z_s = ms(pos[0], pos[1], pos[2], radius, resolution=8)
+            fig.add_trace(go.Surface(
+                x=x_s, y=y_s, z=z_s,
+                colorscale=[[0, color], [1, color]],
+                opacity=1,
+                showscale=False,
+                name='particle' if color_opt == "blue" else None,
+                showlegend=(color_opt == "blue")
+            ))
+        
+        # Add colorbar for addition order mode
+        if color_opt == "addition order":
+            fig.add_trace(go.Scatter3d(
+                x=[None], y=[None], z=[None],
+                mode='markers',
+                marker=dict(
+                    color=[0, 1],
+                    colorscale="Magma",
+                    cmin=0,
+                    cmax=1,
+                    colorbar=dict(
+                        title="Addition Order",
+                        tickvals=[0, 1],
+                        ticktext=["oldest", "newest"]
+                    ),
+                    showscale=True
+                ),
+                showlegend=False
+            ))
+    
+    fig.update_layout(
+        scene=dict(
+            xaxis_title='X',
+            yaxis_title='Y',
+            zaxis_title='Z',
+            aspectmode='data'
+        ),
+        margin=dict(l=0, r=0, b=0, t=0),
+        scene_camera=dict(eye=dict(x=1.5, y=1.5, z=1.5))
+    )
+    return fig
 
 
 with tabs[1]:
@@ -202,7 +300,7 @@ with tabs[1]:
     # Two-column visualization layout
     if 'result' in st.session_state:
         col_vis1, col_vis2 = st.columns(2)
-        
+        total_N = st.session_state.result.get('total_N', len(st.session_state.result['particles']))
         # Growth stage visualization
         with col_vis1:
             st.subheader("Growth Stage")
@@ -218,12 +316,12 @@ with tabs[1]:
             
             positions1 = np.array([p['position'] for p in current_state])
             if viz_type1 == "Static point cloud":
-                plot_static(positions1, color_opt1, current_state)
+                plot_static(positions1, color_opt1, current_state, total_N = total_N)
             elif viz_type1 == "3D point cloud":
-                plot_plotly_points(positions1, color_opt1, current_state, st.session_state.radius)
+                plot_plotly_points(positions1, color_opt1, current_state, st.session_state.radius, total_N = total_N)
             else:  # 3D spheres
                 if len(positions1) <= 200:
-                    plot_plotly_spheres(positions1, color_opt1, current_state, st.session_state.radius)
+                    plot_plotly_spheres(positions1, color_opt1, current_state, st.session_state.radius, total_N = total_N)
                 else:
                     st.warning("This type of visualisation is not currently supported for an aggregate composed of more than 200 particles. Please choose a different type of visualisation or generate a different aggregate")
         
@@ -237,12 +335,12 @@ with tabs[1]:
             
             positions2 = np.array([p['position'] for p in st.session_state.result['particles']])
             if viz_type2 == "Static point cloud":
-                plot_static(positions2, color_opt2, st.session_state.result['particles'])
+                plot_static(positions2, color_opt2, st.session_state.result['particles'], total_N = total_N)
             elif viz_type2 == "3D point cloud":
-                plot_plotly_points(positions2, color_opt2, st.session_state.result['particles'], st.session_state.radius)
+                plot_plotly_points(positions2, color_opt2, st.session_state.result['particles'], st.session_state.radius, total_N = total_N)
             else:  # 3D spheres
                 if len(positions2) <= 200:
-                    plot_plotly_spheres(positions2, color_opt2, st.session_state.result['particles'], st.session_state.radius)
+                    plot_plotly_spheres(positions2, color_opt2, st.session_state.result['particles'], st.session_state.radius, total_N = total_N)
                 else:
                     st.warning("This type of visualisation is not currently supported for an aggregate composed of more than 200 particles. Please choose a different type of visualisation or generate a different aggregate")
         
