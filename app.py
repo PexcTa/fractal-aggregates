@@ -130,8 +130,6 @@ def plot_static(positions, color_opt, particles, total_N):
 def plot_plotly_points(positions, color_opt, particles, radius, total_N):
     fig = go.Figure()
     
-    colors = get_colors(color_opt, particles, total_N)
-    
     if color_opt == "activity":
         # Create separate traces for active/inactive particles
         active_mask = np.array([not p.get('inactive', False) for p in particles])
@@ -151,35 +149,40 @@ def plot_plotly_points(positions, color_opt, particles, radius, total_N):
                 marker=dict(size=8 * radius, color='gray', opacity=0.8),
                 name='Inactive'
             ))
-    else:
-        # Properly convert all colors to rgba strings
-        color_strings = []
-        for c in colors:
-            if isinstance(c, (tuple, list, np.ndarray)):
-                # Convert matplotlib RGBA (0-1) to rgba string
-                rgba_str = f'rgba({c[0]*255:.0f},{c[1]*255:.0f},{c[2]*255:.0f},{c[3]:.2f})'
-                color_strings.append(rgba_str)
-            else:
-                color_strings.append(c)
+    elif color_opt == "addition order":
+        # Use normalized step values for color mapping
+        steps = np.array([p['added_step'] for p in particles])
+        norm_steps = steps / total_N if total_N > 0 else steps
         
-        # Single trace for other color modes
         fig.add_trace(go.Scatter3d(
             x=positions[:,0], y=positions[:,1], z=positions[:,2],
             mode='markers',
             marker=dict(
                 size=8 * radius,
-                color=color_strings,
+                color=norm_steps,  # Use normalized values for color mapping
                 opacity=0.8,
                 line=dict(color='black', width=0.5),
+                colorscale="Magma",
                 colorbar=dict(
                     title="Addition Order",
                     tickvals=[0, 1],
                     ticktext=["oldest", "newest"]
-                ) if color_opt == "addition order" else None,
-                colorscale="Magma" if color_opt == "addition order" else None
+                )
             ),
-            name='particle' if color_opt == "blue" else None,
-            showlegend=(color_opt == "blue")
+            showlegend=False
+        ))
+    else:  # "blue" or other single color
+        fig.add_trace(go.Scatter3d(
+            x=positions[:,0], y=positions[:,1], z=positions[:,2],
+            mode='markers',
+            marker=dict(
+                size=8 * radius,
+                color='blue',
+                opacity=0.8,
+                line=dict(color='black', width=0.5)
+            ),
+            name='particle',
+            showlegend=True
         ))
     
     fig.update_layout(
