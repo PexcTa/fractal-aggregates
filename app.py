@@ -309,7 +309,7 @@ with tabs[1]:
     st.title("Single Aggregate Generator")
     
     # Parameters column
-    with st.expander:
+    with st.expander("Generation Parameters", expanded=True):
         st.subheader("Generation Parameters")
         N = st.slider("Number of particles", 10, 5000, 500, key='sin_agg_N')
         st.caption("Total number of particles in the aggregate. Larger N increases aggregate size and computation time.")
