@@ -485,6 +485,7 @@ with tabs[2]:
                 st.session_state.multiple_metrics = metrics
                 st.session_state.num_aggregates = num_aggregates
                 st.session_state.N = N
+
     if 'multiple_metrics' in st.session_state:
         metrics = st.session_state.multiple_metrics
         num_aggregates = st.session_state.num_aggregates
@@ -531,26 +532,23 @@ with tabs[2]:
         plt.tight_layout()
         st.pyplot(fig)
     
-    # Summary statistics
-    st.subheader("Summary Statistics")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Mean Rg", f"{np.mean(metrics['Rg']):.4f}")
-    col2.metric("Mean Shape Factor", f"{np.mean(metrics['shape_factor']):.4f}")
-    
-    if valid_df_v2:
-        col3.metric("Mean Mass Fractal Dim", f"{np.mean(valid_df_v2):.4f}")
-    else:
-        col3.warning("No valid df values")
+        # Summary statistics
+        st.subheader("Summary Statistics")
         
-    if valid_porosity:
-        col4.metric("Mean Porosity", f"{np.mean(valid_porosity):.4f}")
-    else:
-        col4.warning("No valid porosity values")
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Mean Rg", f"{np.mean(metrics['Rg']):.4f}")
+        col2.metric("Mean Shape Factor", f"{np.mean(metrics['shape_factor']):.4f}")
+        
+        if valid_df_v2:
+            col3.metric("Mean Mass Fractal Dim", f"{np.mean(valid_df_v2):.4f}")
+        else:
+            col3.warning("No valid df values")
+            
+        if valid_porosity:
+            col4.metric("Mean Porosity", f"{np.mean(valid_porosity):.4f}")
+        else:
+            col4.warning("No valid porosity values")
     
-
-    # Aggregate Visualization Section
-    if 'multiple_results' in st.session_state:
         st.markdown("---")
         st.subheader("Aggregate Visualization", text_alignment='center')
         st.caption("Select an aggregate to visualize based on its properties", text_alignment='center')
