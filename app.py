@@ -76,7 +76,14 @@ def get_colors(color_opt, particles, total_N):
         steps = np.array([p['added_step'] for p in particles])
         # Normalize against total_N, not current max
         norm_steps = steps / total_N if total_N > 0 else steps
-        return plt.cm.magma(norm_steps)
+        # Get RGBA values from colormap
+        colors = plt.cm.magma(norm_steps)
+        # Ensure we have 4 values per color (RGBA)
+        if colors.ndim == 1 and len(colors) == 4:
+            colors = np.array([colors])  # Handle single color case
+        elif colors.shape[1] == 3:  # RGB only
+            colors = np.hstack([colors, np.ones((len(colors), 1))])  # Add alpha=1
+        return colors
     elif color_opt == "activity":
         colors = []
         for p in particles:
@@ -145,13 +152,23 @@ def plot_plotly_points(positions, color_opt, particles, radius, total_N):
                 name='Inactive'
             ))
     else:
+        # Properly convert all colors to rgba strings
+        color_strings = []
+        for c in colors:
+            if isinstance(c, (tuple, list, np.ndarray)):
+                # Convert matplotlib RGBA (0-1) to rgba string
+                rgba_str = f'rgba({c[0]*255:.0f},{c[1]*255:.0f},{c[2]*255:.0f},{c[3]:.2f})'
+                color_strings.append(rgba_str)
+            else:
+                color_strings.append(c)
+        
         # Single trace for other color modes
         fig.add_trace(go.Scatter3d(
             x=positions[:,0], y=positions[:,1], z=positions[:,2],
             mode='markers',
             marker=dict(
                 size=8 * radius,
-                color=[f'rgba({c[0]*255},{c[1]*255},{c[2]*255},{c[3]})' if isinstance(c, tuple) else c for c in colors],
+                color=color_strings,
                 opacity=0.8,
                 line=dict(color='black', width=0.5),
                 colorbar=dict(
@@ -217,18 +234,22 @@ def plot_plotly_spheres(positions, color_opt, particles, radius, total_N):
                     showlegend=True
                 ))
     else:
+        # Properly convert all colors to rgba strings
+        color_strings = []
+        for c in colors:
+            if isinstance(c, (tuple, list, np.ndarray)):
+                # Convert matplotlib RGBA (0-1) to rgba string
+                rgba_str = f'rgba({c[0]*255:.0f},{c[1]*255:.0f},{c[2]*255:.0f},{c[3]:.2f})'
+                color_strings.append(rgba_str)
+            else:
+                color_strings.append(c)
+        
         # Single color mode or addition order
         for i, pos in enumerate(positions):
-            color = colors[i]
-            if isinstance(color, tuple) and len(color) == 4:
-                color = f'rgba({color[0]*255},{color[1]*255},{color[2]*255},{color[3]})'
-            elif isinstance(color, np.ndarray) and len(color) == 4:
-                color = f'rgba({color[0]*255},{color[1]*255},{color[2]*255},{color[3]})'
-            
             x_s, y_s, z_s = ms(pos[0], pos[1], pos[2], radius, resolution=8)
             fig.add_trace(go.Surface(
                 x=x_s, y=y_s, z=z_s,
-                colorscale=[[0, color], [1, color]],
+                colorscale=[[0, color_strings[i]], [1, color_strings[i]]],
                 opacity=1,
                 showscale=False,
                 name='particle' if color_opt == "blue" else None,
