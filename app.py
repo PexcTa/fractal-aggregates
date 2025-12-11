@@ -313,13 +313,13 @@ with tabs[1]:
         st.subheader("Generation Parameters")
         N = st.slider("Number of particles", 10, 5000, 500, key='sin_agg_N')
         st.caption("Total number of particles in the aggregate. Larger N increases aggregate size and computation time.")
-        p = st.slider("Inactivation probability", 0.0, 1.0, 0.05, key='sin_agg_p')
+        p = st.slider("Inactivation probability", 0.0, 0.9999, 0.0, key='sin_agg_p')
         st.caption("The probability to inactivate a particle after another one attaches. Large p increases branching.")
         overlap = st.slider("Particle overlap", 0.0, 0.9, 0.0, key='sin_agg_ove')
         st.caption("The degree to which particles are allowed to overlap. At overlap = 0, particles are hard spheres.")
-        radius = st.slider("Particle radius", 0.5, 5.0, 1.0, key='sin_agg_rad')
+        radius = st.slider("Particle radius", 0.1, 10, 1, key='sin_agg_rad')
         st.caption("Particle radius. Unitless because all metrics are scaled to the same units. Meaningful if you plan to work in q-space.")
-        cell_size = st.slider("Cell size", 2.0, 10.0, 4.0, key='sin_agg_cellsize')
+        cell_size = st.slider("Cell size", 0.1, 40, 4.0, key='sin_agg_cellsize')
         st.caption("The size of the cell in the grid for neighbor search. Affects computation time. Should be about 2x-4x the radius.")
         
         if st.button("Generate Aggregate", type="primary"):
