@@ -64,11 +64,9 @@ with tabs[0]:
     Visit Boris's personal website here: <link TBA>
                 
     """)
-
 with tabs[1]:
     st.title("Single Aggregate Generator")
     
-    # Two-column layout: parameters on left, visualization on right
     col_params, col_viz = st.columns([1, 2])
     
     with col_params:
@@ -89,64 +87,140 @@ with tabs[1]:
         radius = st.slider("Particle radius", 0.5, 5.0, 1.0, key='sin_agg_rad')
         st.caption("Radius of individual particles in the aggregate.")
         
+        # Add animation controls
+        show_animation = st.checkbox("Show growth animation", value=False)
+        speed = None
+        if show_animation:
+            speed = st.selectbox("Animation speed", 
+                               ["Slow (5 particles/sec)", 
+                                "Medium (20 particles/sec)", 
+                                "Fast (50 particles/sec)"],
+                               index=1)
+        
         if st.button("Generate Aggregate"):
+            # Modify generate_fractal_aggregate to track intermediate states
             result = generate_fractal_aggregate(
                 N=N,
                 radius=radius,
                 inactivation_probability=p,
                 overlap=overlap,
                 cell_size=cell_size,
+                store_intermediate_states=show_animation,
                 visualize=False
             )
             
-            # Calculate metrics
-            Rg = calculate_radius_of_gyration(result)
-            sf = calculate_shape_factor(result)
+            # Calculate metrics from final state
+            final_state = result['particles'] if show_animation else result
+            Rg = calculate_radius_of_gyration(final_state)
+            sf = calculate_shape_factor(final_state)
             
             # Store in session state
             st.session_state.result = result
             st.session_state.Rg = Rg
             st.session_state.sf = sf
             st.session_state.radius = radius
+            st.session_state.show_animation = show_animation
+            
+            if show_animation:
+                st.session_state.speed = speed
     
-    # Visualization section (outside button handler)
+    # Visualization section
     with col_viz:
         if 'result' in st.session_state:
-            st.subheader("Visualization")
+            if st.session_state.get('show_animation', False):
+                # Animation mode
+                result = st.session_state.result
+                intermediate_states = result['intermediate_states']
+                growth_stage = st.slider("Growth stage (%)", 0, 100, 50)
+                stage_idx = int(growth_stage / 100 * (len(intermediate_states) - 1))
+                current_state = intermediate_states[stage_idx]
+                
+                st.subheader(f"Aggregate at {growth_stage}% growth ({len(current_state)} particles)")
+                positions = np.array([p['position'] for p in current_state])
+                
+                # Same visualization options as final state
+                viz_type = st.radio("Visualization type", ["Static point cloud", "Interactive 3D"], key="anim_viz")
+                
+                if viz_type == "Static point cloud":
+                    fig = plt.figure(figsize=(8, 6))
+                    ax = fig.add_subplot(111, projection='3d')
+                    ax.scatter(positions[:,0], positions[:,1], positions[:,2], s=10, c='blue', alpha=0.8)
+                    ax.set_box_aspect([1,1,1])
+                    ax.set_xlabel('X')
+                    ax.set_ylabel('Y')
+                    ax.set_zlabel('Z')
+                    st.pyplot(fig)
+                else:
+                    fig = go.Figure()
+                    if len(positions) <= 200:
+                        def ms(x, y, z, radius, resolution=8):
+                            u, v = np.mgrid[0:2*np.pi:resolution*2j, 0:np.pi:resolution*1j]
+                            X = radius * np.cos(u) * np.sin(v) + x
+                            Y = radius * np.sin(u) * np.sin(v) + y
+                            Z = radius * np.cos(v) + z
+                            return (X, Y, Z)
+                        
+                        for pos in positions:
+                            x_s, y_s, z_s = ms(pos[0], pos[1], pos[2], st.session_state.radius, resolution=8)
+                            fig.add_trace(go.Surface(
+                                x=x_s, y=y_s, z=z_s,
+                                colorscale=[[0, 'dodgerblue'], [1, 'dodgerblue']],
+                                opacity=1,
+                                showscale=False,
+                            ))
+                    else:
+                        fig.add_trace(go.Scatter3d(
+                            x=positions[:,0], y=positions[:,1], z=positions[:,2],
+                            mode='markers',
+                            marker=dict(
+                                size=16 * st.session_state.radius,
+                                color='dodgerblue',
+                                opacity=0.9,
+                                line=dict(color='black', width=4)
+                            )
+                        ))
+                    
+                    fig.update_layout(
+                        scene=dict(
+                            xaxis_title='X',
+                            yaxis_title='Y',
+                            zaxis_title='Z',
+                            aspectmode='data'
+                        ),
+                        margin=dict(l=0, r=0, b=0, t=0),
+                        scene_camera=dict(eye=dict(x=1.5, y=1.5, z=1.5))
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
             
-            viz_type = st.radio("Visualization type", ["Static point cloud", "Interactive 3D (for N<201)"])
+            # Final result display (always shown below animation)
+            st.markdown("---")
+            st.subheader("Final Aggregate")
+            particles_to_use = st.session_state.result['particles'] if 'intermediate_states' in st.session_state.result else st.session_state.result
+            positions = np.array([p['position'] for p in particles_to_use])
             
-            positions = np.array([p['position'] for p in st.session_state.result['particles']])
-            radius = st.session_state.get('radius', 1.0)
+            viz_type = st.radio("Visualization type", ["Static point cloud", "Interactive 3D (for N<201)"], key="final_viz")
             
             if viz_type == "Static point cloud":
-                # Existing matplotlib code
                 fig = plt.figure(figsize=(8, 6))
                 ax = fig.add_subplot(111, projection='3d')
-                scatter = ax.scatter(positions[:,0], positions[:,1], positions[:,2], s=10, c='blue', alpha=0.8)
+                ax.scatter(positions[:,0], positions[:,1], positions[:,2], s=10, c='blue', alpha=0.8)
                 ax.set_box_aspect([1,1,1])
-                ax.set_proj_type('persp', focal_length=0.25)
                 ax.set_xlabel('X')
                 ax.set_ylabel('Y')
                 ax.set_zlabel('Z')
-                plt.tight_layout()
                 st.pyplot(fig)
-                
-            else:  # Interactive 3D
+            else:
                 fig = go.Figure()
-                
-                if len(positions) <= 200:  # Only render proper spheres for small aggregates
-                    def ms(x, y, z, radius, resolution=10):
-                        """Return coordinates for plotting a sphere centered at (x,y,z)"""
+                if len(positions) <= 200:
+                    def ms(x, y, z, radius, resolution=8):
                         u, v = np.mgrid[0:2*np.pi:resolution*2j, 0:np.pi:resolution*1j]
                         X = radius * np.cos(u) * np.sin(v) + x
                         Y = radius * np.sin(u) * np.sin(v) + y
                         Z = radius * np.cos(v) + z
                         return (X, Y, Z)
                     
-                    # Create a surface for each particle
                     for pos in positions:
-                        x_s, y_s, z_s = ms(pos[0], pos[1], pos[2], radius, resolution=8)
+                        x_s, y_s, z_s = ms(pos[0], pos[1], pos[2], st.session_state.radius, resolution=8)
                         fig.add_trace(go.Surface(
                             x=x_s, y=y_s, z=z_s,
                             colorscale=[[0, 'dodgerblue'], [1, 'dodgerblue']],
@@ -154,18 +228,14 @@ with tabs[1]:
                             showscale=False,
                         ))
                 else:
-                    # For larger aggregates, use scatter with size based on radius
                     fig.add_trace(go.Scatter3d(
                         x=positions[:,0], y=positions[:,1], z=positions[:,2],
                         mode='markers',
                         marker=dict(
-                            size=16 * radius,  # Scale marker size by particle radius
+                            size=16 * st.session_state.radius,
                             color='dodgerblue',
                             opacity=0.9,
-                            line=dict(
-                                color='black', # Edge color
-                                width=4                # Edge width in pixels
-                            )
+                            line=dict(color='black', width=4)
                         )
                     ))
                 
@@ -181,7 +251,7 @@ with tabs[1]:
                 )
                 st.plotly_chart(fig, use_container_width=True)
             
-            # Metrics below visualization
+            # Metrics
             st.subheader("Aggregate Metrics")
             col1, col2 = st.columns(2)
             col1.metric("Radius of Gyration", f"{st.session_state.Rg:.4f}")
@@ -189,7 +259,8 @@ with tabs[1]:
             
             # Save XYZ button
             if st.button("Save XYZ"):
-                filename = export_to_xyz(st.session_state.result['particles'])
+                particles = st.session_state.result['particles'] if 'intermediate_states' in st.session_state.result else st.session_state.result
+                filename = export_to_xyz(particles)
                 with open(filename, "rb") as f:
                     st.download_button(
                         label="Download XYZ file",

@@ -54,7 +54,9 @@ def generate_fractal_aggregate(
     inactivation_probability=0.0,
     cell_size=8.0,
     max_particles_for_spheres=200,
-    visualize=True
+    visualize=True,
+    store_intermediate_states=False,  # New parameter
+    sampling_interval=0.05  # Sample every 5% of growth
 ):
     np.random.seed(random_seed)
     particles = []
@@ -82,7 +84,9 @@ def generate_fractal_aggregate(
             if distance < effective_distance:
                 return False
         return True
-    
+    # Initialize storage for intermediate states if needed
+    intermediate_states = []
+    next_sample_point = sampling_interval
     step = 1
     while len(particles) < N:
         active_particles = [p for p in particles if not p['inactive']]
@@ -101,8 +105,30 @@ def generate_fractal_aggregate(
             if len(active_particles) > 1 and np.random.random() < inactivation_probability:
                 selected_particle['inactive'] = True
             step += 1
-    
-    return {'particles': particles}
+
+        if store_intermediate_states and len(particles) / N >= next_sample_point:
+            # Deep copy current particles
+            current_state = [{
+                'position': p['position'].copy(),
+                'added_step': p['added_step'],
+                'inactive': p['inactive']
+            } for p in particles]
+            intermediate_states.append(current_state)
+            next_sample_point += sampling_interval
+
+        # Final state should always be stored
+    final_state = [{
+        'position': p['position'].copy(),
+        'added_step': p['added_step'],
+        'inactive': p['inactive']
+    } for p in particles]
+    intermediate_states.append(final_state)
+
+    result = {
+        'particles': particles}
+    if store_intermediate_states:
+        result['intermediate_states'] = intermediate_states
+    return result
 
 def calculate_radius_of_gyration(particles_or_result):
     particles, _ = _extract_particles(particles_or_result)
