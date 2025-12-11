@@ -83,7 +83,7 @@ Project Link: [https://github.com/PexcTa/fractal-aggregates](https://github.com/
 
 ## Acknowledgments
 
-* I am using an adapted version of othnealdrew's [Best-README-Template](https://github.com/othneildrew/Best-README-Template/blob/main/BLANK_README.md)
+* I am using an adapted version of othneildrew's [Best-README-Template](https://github.com/othneildrew/Best-README-Template/blob/main/BLANK_README.md)
 * The algorithm used by the app was described by Guesnet et al. in a scientific publication at [10.1016/j.physa.2018.07.061](https://doi.org/10.1016/j.physa.2018.07.061)
 * All code was developed with assistance from [Qwen3-Max](https://chat.qwen.ai)
 

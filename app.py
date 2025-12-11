@@ -477,17 +477,17 @@ with tabs[2]:
             st.session_state.multiple_metrics = metrics
             
             # Show metrics distributions (4 histograms)
-            fig, axs = plt.subplots(2, 2, figsize=(12, 8))
+            fig, axs = plt.subplots(2, 2, figsize=(24, 16))
             fig.suptitle(f'Distributions for {num_aggregates} aggregates (N={N})', fontsize=14)
             
             # Radius of Gyration
-            axs[0, 0].hist(metrics['Rg'], bins=10, alpha=0.7, color='blue')
+            axs[0, 0].hist(metrics['Rg'], bins=10, alpha=0.7, edgecolor='black',  color='blue')
             axs[0, 0].set_title('Radius of Gyration (Rg)')
             axs[0, 0].set_xlabel('Rg')
             axs[0, 0].set_ylabel('Frequency')
             
             # Shape Factor
-            axs[0, 1].hist(metrics['shape_factor'], bins=10, alpha=0.7, color='orange')
+            axs[0, 1].hist(metrics['shape_factor'], bins=10, alpha=0.7, edgecolor='black', color='orange')
             axs[0, 1].set_title('Shape Factor')
             axs[0, 1].set_xlabel('Shape Factor')
             axs[0, 1].set_ylabel('Frequency')
@@ -495,7 +495,7 @@ with tabs[2]:
             # Mass Fractal Dimension (df_v2)
             valid_df_v2 = [x for x in metrics['df_v2'] if not np.isnan(x)]
             if valid_df_v2:
-                axs[1, 0].hist(valid_df_v2, bins=10, alpha=0.7, color='green')
+                axs[1, 0].hist(valid_df_v2, bins=10, alpha=0.7, edgecolor='black', color='green')
                 axs[1, 0].set_title('Mass Fractal Dimension (df)')
                 axs[1, 0].set_xlabel('df')
                 axs[1, 0].set_ylabel('Frequency')
@@ -504,7 +504,7 @@ with tabs[2]:
             # Porosity
             valid_porosity = [x for x in metrics['porosity'] if not np.isnan(x)]
             if valid_porosity:
-                axs[1, 1].hist(valid_porosity, bins=10, alpha=0.7, color='red')
+                axs[1, 1].hist(valid_porosity, bins=10, alpha=0.7, edgecolor='black', color='red')
                 axs[1, 1].set_title('Porosity')
                 axs[1, 1].set_xlabel('Porosity (ϵ)')
                 axs[1, 1].set_ylabel('Frequency')
