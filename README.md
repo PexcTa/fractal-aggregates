@@ -23,9 +23,11 @@
 
 ## About The Project
 
-[![Product Name Screen Shot][product-screenshot]](https://example.com)
+This repo is a Streamlit-hosted app that allows the user to build simple, geometrical, three-dimensional models of mass fractal aggregates. It was developed to assist with small angle scattering data analysis. The parameter range is limited in the app in order to keep simulations reasonably fast; therefore, the app is a bit of a demo for the actual implementation. 
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+The app itself can be accessed here: [kramar-pemfa.streamlit.app](https://kramar-pemfa.streamlit.app/)
+
+This is a work in progress.
 
 
 ## Getting Started
@@ -70,8 +72,6 @@ All contributions and comments are greatly appreciated.
 ## License
 
 Distributed under the The Unlicense. 
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
 ## Contact
