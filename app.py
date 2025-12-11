@@ -537,6 +537,7 @@ with tabs[2]:
     else:
         col4.warning("No valid porosity values")
     
+
     # Aggregate Visualization Section
     if 'multiple_results' in st.session_state:
         st.markdown("---")
@@ -547,13 +548,10 @@ with tabs[2]:
         
         with col1:
             metric_selection = st.selectbox("Sort by metric", 
-                                           ["Shape Factor", "Radius of Gyration (Rg)", "Mass Fractal Dimension (df)"])
+                                        ["Shape Factor", "Radius of Gyration (Rg)", "Mass Fractal Dimension (df)"])
         
         with col2:
             sort_direction = st.radio("Direction", ["Lowest", "Highest"])
-        
-        with col3:
-            viz_type_agg = st.radio("Visualization type", ["Static point cloud", "Interactive 3D"])
         
         if st.button("Visualize Selected Aggregate"):
             # Find the index of the aggregate to visualize
@@ -594,7 +592,8 @@ with tabs[2]:
                     },
                     'metric_name': metric_selection,
                     'metric_value': selected_metric_value,
-                    'sort_direction': sort_direction
+                    'sort_direction': sort_direction,
+                    'total_N': selected_aggregate['parameters'].get('N', len(selected_aggregate['particles']))
                 }
         
         # Display the visualization if an aggregate has been selected
@@ -603,72 +602,35 @@ with tabs[2]:
             st.subheader(f"Aggregate with {sort_direction} {metric_selection}")
             st.caption(f"Value: {selected['metric_value']:.4f}")
             
-            # Get particle positions
+            # Visualization options
+            col_viz1, col_viz2 = st.columns(2)
+            
+            with col_viz1:
+                viz_type_agg = st.selectbox("Visualization type", 
+                                        ["Static point cloud", "3D point cloud", "3D spheres (N<201)"],
+                                        key="agg_viz_type")
+                color_opt_agg = st.selectbox("Color by", ["blue", "addition order", "activity"], 
+                                            key="agg_color_opt")
+            
+            # Get particle positions and radius
             positions = np.array([p['position'] for p in selected['particles']])
             radius = selected['parameters'].get('radius', 1.0)
+            total_N = selected.get('total_N', len(selected['particles']))
             
+            # Display visualization based on selection
             if viz_type_agg == "Static point cloud":
-                # Static visualization using matplotlib
-                fig = plt.figure(figsize=(8, 6))
-                ax = fig.add_subplot(111, projection='3d')
-                ax.scatter(positions[:,0], positions[:,1], positions[:,2], s=10, c='blue', alpha=0.8)
-                ax.set_box_aspect([1,1,1])
-                ax.set_proj_type('persp', focal_length=0.25)
-                ax.set_xlabel('X')
-                ax.set_ylabel('Y')
-                ax.set_zlabel('Z')
-                plt.tight_layout()
+                fig = plot_static(positions, color_opt_agg, selected['particles'], radius, total_N)
                 st.pyplot(fig)
-                
-            else:  # Interactive 3D
-                # Interactive visualization using Plotly
-                fig = go.Figure()
-                if len(positions) <= 50:
-                    def ms(x, y, z, radius, resolution=8):
-                        """Return coordinates for plotting a sphere centered at (x,y,z)"""
-                        u, v = np.mgrid[0:2*np.pi:resolution*2j, 0:np.pi:resolution*1j]
-                        X = radius * np.cos(u) * np.sin(v) + x
-                        Y = radius * np.sin(u) * np.sin(v) + y
-                        Z = radius * np.cos(v) + z
-                        return (X, Y, Z)
-                    
-                    for pos in positions:
-                        x_s, y_s, z_s = ms(pos[0], pos[1], pos[2], radius, resolution=8)
-                        fig.add_trace(go.Surface(
-                            x=x_s, y=y_s, z=z_s,
-                            colorscale=[[0, 'dodgerblue'], [1, 'dodgerblue']],
-                            opacity=1.0,
-                            showscale=False,
-                            #lighting=dict(ambient=0.5, diffuse=0.8, specular=0.5),
-                            #lightposition=dict(x=100, y=200, z=0)
-                        ))
+            elif viz_type_agg == "3D point cloud":
+                fig = plot_plotly_points(positions, color_opt_agg, selected['particles'], radius, total_N)
+                st.plotly_chart(fig, use_container_width=True, key=f"agg_viz_point_{color_opt_agg}")
+            else:  # 3D spheres (N<201)
+                if len(positions) <= 200:
+                    fig = plot_plotly_spheres(positions, color_opt_agg, selected['particles'], radius, total_N)
+                    st.plotly_chart(fig, use_container_width=True, key=f"agg_viz_spheres_{color_opt_agg}")
                 else:
-                    fig.add_trace(go.Scatter3d(
-                        x=positions[:,0], y=positions[:,1], z=positions[:,2],
-                        mode='markers',
-                        marker=dict(
-                            size=16 * radius,
-                            color='dodgerblue',
-                            opacity=0.9,
-                            line=dict(
-                            color='black', # Edge color
-                            width=4                # Edge width in pixels
-                            )
-                        )
-                    ))
-                
-                fig.update_layout(
-                    scene=dict(
-                        xaxis_title='X',
-                        yaxis_title='Y',
-                        zaxis_title='Z',
-                        aspectmode='data'
-                    ),
-                    margin=dict(l=0, r=0, b=0, t=0),
-                    scene_camera=dict(eye=dict(x=1.5, y=1.5, z=1.5))
-                )
-                st.plotly_chart(fig, use_container_width=True)
-                
+                    st.warning("This type of visualisation is not currently supported for an aggregate composed of more than 200 particles. Please choose a different type of visualisation or generate a different aggregate")
+            
             # Display metrics for the selected aggregate
             st.subheader("Selected Aggregate Metrics")
             col1, col2, col3, col4 = st.columns(4)
@@ -677,12 +639,11 @@ with tabs[2]:
             col3.metric("Mass Fractal Dim", f"{selected['metrics']['df_v2']:.4f}")
             col4.metric("Porosity", f"{selected['metrics']['porosity']:.4f}")
 
-            # After the visualization section, add this code:
-
+            # Save buttons
             col1, col2 = st.columns(2)
 
             with col1:
-                if 'selected_aggregate' in st.session_state and st.button("Save XYZ (Selected)"):
+                if st.button("Save XYZ (Selected)"):
                     selected = st.session_state.selected_aggregate
                     filename = f"aggregate_{selected['sort_direction']}_{selected['metric_name'].replace(' ', '_')}.xyz"
                     
@@ -701,7 +662,7 @@ with tabs[2]:
                     )
 
             with col2:
-                if 'multiple_results' in st.session_state and st.button("Save All (ZIP)"):
+                if st.button("Save All (ZIP)"):
                     import zipfile
                     from io import BytesIO
                     
