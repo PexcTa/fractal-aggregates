@@ -125,7 +125,7 @@ def generate_fractal_aggregate(
 
     result = {
         'particles': particles,
-       ' intermediate_states' : intermediate_states,
+        'intermediate_states' : intermediate_states,
         'total_N': N  # Store the requested total number of particles
     }
     return result
