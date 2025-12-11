@@ -344,11 +344,11 @@ with tabs[1]:
                 st.pyplot(fig)
             elif viz_type1 == "3D point cloud":
                 fig = plot_plotly_points(positions1, color_opt1, current_state, st.session_state.radius, total_N = total_N)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key=tab1col1chartv1)
             else:  # 3D spheres
                 if len(positions1) <= 200:
                     fig = plot_plotly_spheres(positions1, color_opt1, current_state, st.session_state.radius, total_N = total_N)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, key=tab1col1chartv2)
                 else:
                     st.warning("This type of visualisation is not currently supported for an aggregate composed of more than 200 particles. Please choose a different type of visualisation or generate a different aggregate")
         
@@ -366,11 +366,11 @@ with tabs[1]:
                 st.pyplot(fig)
             elif viz_type2 == "3D point cloud":
                 fig = plot_plotly_points(positions2, color_opt2, st.session_state.result['particles'], st.session_state.radius, total_N = total_N)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key=tab1col2chartv1)
             else:  # 3D spheres
                 if len(positions2) <= 200:
                     fig = plot_plotly_spheres(positions2, color_opt2, st.session_state.result['particles'], st.session_state.radius, total_N = total_N)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, key=tab1col2chartv2)
                 else:
                     st.warning("This type of visualisation is not currently supported for an aggregate composed of more than 200 particles. Please choose a different type of visualisation or generate a different aggregate")
         
