@@ -149,41 +149,54 @@ def plot_plotly_points(positions, color_opt, particles, radius, total_N):
                 marker=dict(size=8 * radius, color='gray', opacity=0.8),
                 name='Inactive'
             ))
-    elif color_opt == "addition order":
-        # Use normalized step values for color mapping
-        steps = np.array([p['added_step'] for p in particles])
-        norm_steps = steps / total_N if total_N > 0 else steps
+    else:
+        # Get colors using the same method as plot_plotly_spheres()
+        colors = get_colors(color_opt, particles, total_N)
         
+        # Convert to format Plotly needs
+        color_strings = []
+        for c in colors:
+            if isinstance(c, (tuple, list, np.ndarray)):
+                rgba_str = f'rgba({c[0]*255:.0f},{c[1]*255:.0f},{c[2]*255:.0f},{c[3]:.2f})'
+                color_strings.append(rgba_str)
+            else:
+                color_strings.append(c)
+        
+        # Single trace for other color modes
         fig.add_trace(go.Scatter3d(
             x=positions[:,0], y=positions[:,1], z=positions[:,2],
             mode='markers',
             marker=dict(
                 size=8 * radius,
-                color=norm_steps,  # Use normalized values for color mapping
-                opacity=0.8,
-                line=dict(color='black', width=0.5),
-                colorscale="Magma",
-                colorbar=dict(
-                    title="Addition Order",
-                    tickvals=[0, 1],
-                    ticktext=["oldest", "newest"]
-                )
-            ),
-            showlegend=False
-        ))
-    else:  # "blue" or other single color
-        fig.add_trace(go.Scatter3d(
-            x=positions[:,0], y=positions[:,1], z=positions[:,2],
-            mode='markers',
-            marker=dict(
-                size=8 * radius,
-                color='blue',
+                color=color_strings,
                 opacity=0.8,
                 line=dict(color='black', width=0.5)
             ),
-            name='particle',
-            showlegend=True
+            name='particle' if color_opt == "blue" else None,
+            showlegend=(color_opt == "blue")
         ))
+        
+        # Add colorbar if needed
+        if color_opt == "addition order":
+            colorbar_trace = go.Scatter3d(
+                x=[None], y=[None], z=[None],
+                mode='markers',
+                marker=dict(
+                    colorscale="Magma",
+                    cmin=0,
+                    cmax=1,
+                    color=[0, 1],
+                    showscale=True,
+                    colorbar=dict(
+                        title="Addition Order",
+                        tickvals=[0, 1],
+                        ticktext=["oldest", "newest"]
+                    )
+                ),
+                showlegend=False,
+                hoverinfo='none'
+            )
+            fig.add_trace(colorbar_trace)
     
     fig.update_layout(
         scene=dict(
@@ -299,10 +312,15 @@ with tabs[1]:
     with st.sidebar:
         st.subheader("Generation Parameters")
         N = st.slider("Number of particles", 10, 5000, 500, key='sin_agg_N')
+        st.caption("Total number of particles in the aggregate. Larger N increases aggregate size and computation time.")
         p = st.slider("Inactivation probability", 0.0, 1.0, 0.05, key='sin_agg_p')
+        st.caption("The probability to inactivate a particle after another one attaches. Large p increases branching.")
         overlap = st.slider("Particle overlap", 0.0, 0.9, 0.0, key='sin_agg_ove')
-        cell_size = st.slider("Cell size", 2.0, 10.0, 4.0, key='sin_agg_cellsize')
+        st.caption("The degree to which particles are allowed to overlap. At overlap = 0, particles are hard spheres.")
         radius = st.slider("Particle radius", 0.5, 5.0, 1.0, key='sin_agg_rad')
+        st.caption("Particle radius. Unitless because all metrics are scaled to the same units. Meaningful if you plan to work in q-space.")
+        cell_size = st.slider("Cell size", 2.0, 10.0, 4.0, key='sin_agg_cellsize')
+        st.caption("The size of the cell in the grid for neighbor search. Affects computation time. Should be about 2x-4x the radius.")
         
         if st.button("Generate Aggregate", type="primary"):
             result = generate_fractal_aggregate(
