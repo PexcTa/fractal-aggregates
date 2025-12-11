@@ -415,125 +415,127 @@ with tabs[2]:
     st.title("Multiple Aggregates Generator")
     
     # Parameters
-    col1, col2 = st.columns(2)
-    with col1:
-        num_aggregates = st.slider("Number of aggregates", 1, 50, 5)
-        N = st.slider("Particles per aggregate", 10, 1000, 100)
-        p = st.slider("Inactivation probability", 0.0, 1.0, 0.05)
-    with col2:
-        overlap = st.slider("Particle overlap", 0.0, 0.9, 0.0)
-        cell_size = st.slider("Cell size", 2.0, 10.0, 4.0)
-        radius = st.slider("Particle radius", 0.5, 5.0, 1.0)
-    
-    if st.button("Generate Multiple Aggregates"):
-        with st.spinner("Generating aggregates... This may take a while for large N."):
-            results = []
-            metrics = {
-                'Rg': [], 
-                'shape_factor': [], 
-                'df_v2': [],  # Mass fractal dimension
-                'porosity': []  # Porosity
-            }
+    with st.expander("Generation Parameters"):
             
-            for i in range(num_aggregates):
-                seed = 42 + i
-                result = generate_fractal_aggregate(
-                    N=N,
-                    radius=radius,
-                    inactivation_probability=p,
-                    overlap=overlap,
-                    cell_size=cell_size,
-                    random_seed=seed,
-                    visualize=False
-                )
-                Rg = calculate_radius_of_gyration(result)
-                sf = calculate_shape_factor(result)
+        col1, col2 = st.columns(2)
+        with col1:
+            num_aggregates = st.slider("Number of aggregates", 1, 50, 5)
+            N = st.slider("Particles per aggregate", 10, 1000, 100)
+            p = st.slider("Inactivation probability", 0.0, 1.0, 0.05)
+        with col2:
+            overlap = st.slider("Particle overlap", 0.0, 0.9, 0.0)
+            cell_size = st.slider("Cell size", 2.0, 10.0, 4.0)
+            radius = st.slider("Particle radius", 0.5, 5.0, 1.0)
+        
+        if st.button("Generate Multiple Aggregates"):
+            with st.spinner("Generating aggregates... This may take a while for large N."):
+                results = []
+                metrics = {
+                    'Rg': [], 
+                    'shape_factor': [], 
+                    'df_v2': [],  # Mass fractal dimension
+                    'porosity': []  # Porosity
+                }
                 
-                # Calculate mass fractal dimension
-                try:
-                    _, _, _, df_v2, _, _, _ = calculate_structure_factor(
-                        result, 
-                        R_particle=radius,
-                        q_min=0.01,
-                        q_max=10.0,
-                        n_q=50
+                for i in range(num_aggregates):
+                    seed = 42 + i
+                    result = generate_fractal_aggregate(
+                        N=N,
+                        radius=radius,
+                        inactivation_probability=p,
+                        overlap=overlap,
+                        cell_size=cell_size,
+                        random_seed=seed,
+                        visualize=False
                     )
-                except Exception as e:
-                    df_v2 = np.nan
+                    Rg = calculate_radius_of_gyration(result)
+                    sf = calculate_shape_factor(result)
+                    
+                    # Calculate mass fractal dimension
+                    try:
+                        _, _, _, df_v2, _, _, _ = calculate_structure_factor(
+                            result, 
+                            R_particle=radius,
+                            q_min=0.01,
+                            q_max=10.0,
+                            n_q=50
+                        )
+                    except Exception as e:
+                        df_v2 = np.nan
+                    
+                    # Calculate porosity
+                    try:
+                        porosity, _, _ = calculate_porosity(result, particle_radius=radius)
+                    except Exception as e:
+                        porosity = np.nan
+                    
+                    results.append(result)
+                    metrics['Rg'].append(Rg)
+                    metrics['shape_factor'].append(sf)
+                    metrics['df_v2'].append(df_v2)
+                    metrics['porosity'].append(porosity)
                 
-                # Calculate porosity
-                try:
-                    porosity, _, _ = calculate_porosity(result, particle_radius=radius)
-                except Exception as e:
-                    porosity = np.nan
+                st.session_state.multiple_results = results
+                st.session_state.multiple_metrics = metrics
                 
-                results.append(result)
-                metrics['Rg'].append(Rg)
-                metrics['shape_factor'].append(sf)
-                metrics['df_v2'].append(df_v2)
-                metrics['porosity'].append(porosity)
-            
-            st.session_state.multiple_results = results
-            st.session_state.multiple_metrics = metrics
-            
-            # Show metrics distributions (4 histograms)
-            fig, axs = plt.subplots(2, 2, figsize=(24, 16))
-            fig.suptitle(f'Distributions for {num_aggregates} aggregates (N={N})', fontsize=14)
-            
-            fs1 = 24
-            fs2 = 20
+    # Show metrics distributions (4 histograms)
+    fig, axs = plt.subplots(2, 2, figsize=(24, 16))
+    fig.suptitle(f'Distributions for {num_aggregates} aggregates (N={N})', fontsize=14)
+    
+    fs1 = 24
+    fs2 = 20
 
-            # Radius of Gyration
-            axs[0, 0].hist(metrics['Rg'], bins=10, alpha=0.7, edgecolor='black',  color='blue')
-            axs[0, 0].set_title('Radius of Gyration (Rg)', fontsize = fs1)
-            axs[0, 0].set_xlabel('Rg', fontsize = fs1)
-            axs[0, 0].set_ylabel('Frequency', fontsize = fs1)
-            
-            # Shape Factor
-            axs[0, 1].hist(metrics['shape_factor'], bins=10, alpha=0.7, edgecolor='black', color='orange')
-            axs[0, 1].set_title('Shape Factor', fontsize = fs1)
-            axs[0, 1].set_xlabel('Shape Factor', fontsize = fs1)
-            axs[0, 1].set_ylabel('Frequency', fontsize = fs1)
-            
-            # Mass Fractal Dimension (df_v2)
-            valid_df_v2 = [x for x in metrics['df_v2'] if not np.isnan(x)]
-            if valid_df_v2:
-                axs[1, 0].hist(valid_df_v2, bins=10, alpha=0.7, edgecolor='black', color='green')
-                axs[1, 0].set_title('Mass Fractal Dimension (df)', fontsize = fs1)
-                axs[1, 0].set_xlabel('df', fontsize = fs1)
-                axs[1, 0].set_ylabel('Frequency', fontsize = fs1)
-                axs[1, 0].set_xlim(1.0, 3.0)  # Typical fractal dimension range
-            
-            # Porosity
-            valid_porosity = [x for x in metrics['porosity'] if not np.isnan(x)]
-            if valid_porosity:
-                axs[1, 1].hist(valid_porosity, bins=10, alpha=0.7, edgecolor='black', color='red')
-                axs[1, 1].set_title('Porosity', fontsize = fs1)
-                axs[1, 1].set_xlabel('Porosity (ϵ)', fontsize = fs1)
-                axs[1, 1].set_ylabel('Frequency', fontsize = fs1)
-                axs[1, 1].set_xlim(0.0, 1.0)
-            
-            for ax in axs.flatten():
-                ax.tick_params('both', labelsize=fs2)
-            plt.tight_layout()
-            st.pyplot(fig)
-            
-            # Summary statistics
-            st.subheader("Summary Statistics")
-            
-            col1, col2, col3, col4 = st.columns(4)
-            col1.metric("Mean Rg", f"{np.mean(metrics['Rg']):.4f}")
-            col2.metric("Mean Shape Factor", f"{np.mean(metrics['shape_factor']):.4f}")
-            
-            if valid_df_v2:
-                col3.metric("Mean Mass Fractal Dim", f"{np.mean(valid_df_v2):.4f}")
-            else:
-                col3.warning("No valid df values")
-                
-            if valid_porosity:
-                col4.metric("Mean Porosity", f"{np.mean(valid_porosity):.4f}")
-            else:
-                col4.warning("No valid porosity values")
+    # Radius of Gyration
+    axs[0, 0].hist(metrics['Rg'], bins=10, alpha=0.7, edgecolor='black',  color='blue')
+    axs[0, 0].set_title('Radius of Gyration (Rg)', fontsize = fs1)
+    axs[0, 0].set_xlabel('Rg', fontsize = fs1)
+    axs[0, 0].set_ylabel('Frequency', fontsize = fs1)
+    
+    # Shape Factor
+    axs[0, 1].hist(metrics['shape_factor'], bins=10, alpha=0.7, edgecolor='black', color='orange')
+    axs[0, 1].set_title('Shape Factor', fontsize = fs1)
+    axs[0, 1].set_xlabel('Shape Factor', fontsize = fs1)
+    axs[0, 1].set_ylabel('Frequency', fontsize = fs1)
+    
+    # Mass Fractal Dimension (df_v2)
+    valid_df_v2 = [x for x in metrics['df_v2'] if not np.isnan(x)]
+    if valid_df_v2:
+        axs[1, 0].hist(valid_df_v2, bins=10, alpha=0.7, edgecolor='black', color='green')
+        axs[1, 0].set_title('Mass Fractal Dimension (df)', fontsize = fs1)
+        axs[1, 0].set_xlabel('df', fontsize = fs1)
+        axs[1, 0].set_ylabel('Frequency', fontsize = fs1)
+        axs[1, 0].set_xlim(1.0, 3.0)  # Typical fractal dimension range
+    
+    # Porosity
+    valid_porosity = [x for x in metrics['porosity'] if not np.isnan(x)]
+    if valid_porosity:
+        axs[1, 1].hist(valid_porosity, bins=10, alpha=0.7, edgecolor='black', color='red')
+        axs[1, 1].set_title('Porosity', fontsize = fs1)
+        axs[1, 1].set_xlabel('Porosity (ϵ)', fontsize = fs1)
+        axs[1, 1].set_ylabel('Frequency', fontsize = fs1)
+        axs[1, 1].set_xlim(0.0, 1.0)
+    
+    for ax in axs.flatten():
+        ax.tick_params('both', labelsize=fs2)
+    plt.tight_layout()
+    st.pyplot(fig)
+    
+    # Summary statistics
+    st.subheader("Summary Statistics")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Mean Rg", f"{np.mean(metrics['Rg']):.4f}")
+    col2.metric("Mean Shape Factor", f"{np.mean(metrics['shape_factor']):.4f}")
+    
+    if valid_df_v2:
+        col3.metric("Mean Mass Fractal Dim", f"{np.mean(valid_df_v2):.4f}")
+    else:
+        col3.warning("No valid df values")
+        
+    if valid_porosity:
+        col4.metric("Mean Porosity", f"{np.mean(valid_porosity):.4f}")
+    else:
+        col4.warning("No valid porosity values")
     
     # Aggregate Visualization Section
     if 'multiple_results' in st.session_state:
