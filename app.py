@@ -91,7 +91,7 @@ def get_colors(color_opt, particles, total_N):
         return colors
     return ['blue'] * len(particles)
 
-def plot_static(positions, color_opt, particles, total_N):
+def plot_static(positions, color_opt, particles, particle_radius, total_N):
     fig = plt.figure(figsize=(6, 6))
     ax = fig.add_subplot(111, projection='3d')
     
@@ -99,7 +99,7 @@ def plot_static(positions, color_opt, particles, total_N):
     
     scatter = ax.scatter(
         positions[:,0], positions[:,1], positions[:,2],
-        c=colors, s=10, alpha=0.8
+        c=colors, s=particle_radius*20, alpha=0.8
     )
     ax.set_box_aspect([1,1,1])
     ax.set_xlabel('X')
@@ -340,7 +340,7 @@ with tabs[1]:
             
             positions1 = np.array([p['position'] for p in current_state])
             if viz_type1 == "Static point cloud":
-                fig = plot_static(positions1, color_opt1, current_state, total_N = total_N)
+                fig = plot_static(positions1, color_opt1, current_state, particle_radius=radius, total_N = total_N)
                 st.pyplot(fig)
             elif viz_type1 == "3D point cloud":
                 fig = plot_plotly_points(positions1, color_opt1, current_state, st.session_state.radius, total_N = total_N)
@@ -362,7 +362,7 @@ with tabs[1]:
             
             positions2 = np.array([p['position'] for p in st.session_state.result['particles']])
             if viz_type2 == "Static point cloud":
-                fig = plot_static(positions2, color_opt2, st.session_state.result['particles'], total_N = total_N)
+                fig = plot_static(positions2, color_opt2, st.session_state.result['particles'], particle_radius=radius, total_N = total_N)
                 st.pyplot(fig)
             elif viz_type2 == "3D point cloud":
                 fig = plot_plotly_points(positions2, color_opt2, st.session_state.result['particles'], st.session_state.radius, total_N = total_N)
