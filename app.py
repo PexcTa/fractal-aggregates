@@ -13,6 +13,9 @@ from fractal_generator import (
     calculate_structure_factor
 )
 
+# widescreen view
+st.set_page_config(layout="wide")
+
 # Function to export to XYZ format
 def export_to_xyz(particles, filename="aggregate.xyz"):
     with open(filename, 'w') as f:
@@ -64,215 +67,203 @@ with tabs[0]:
     Visit Boris's personal website here: <link TBA>
                 
     """)
+
+def get_colors(color_opt, particles, max_step):
+    """Get colors based on selection option"""
+    if color_opt == "blue":
+        return ['blue'] * len(particles)
+    elif color_opt == "addition order":
+        steps = np.array([p['added_step'] for p in particles])
+        norm_steps = steps / max_step if max_step > 0 else steps
+        return plt.cm.magma(norm_steps)
+    elif color_opt == "activity":
+        colors = []
+        for p in particles:
+            colors.append('orange' if not p['inactive'] else 'gray')
+        return colors
+    return ['blue'] * len(particles)
+
+def plot_static(positions, color_opt, particles):
+    fig = plt.figure(figsize=(6, 6))
+    ax = fig.add_subplot(111, projection='3d')
+    
+    max_step = max(p['added_step'] for p in particles)
+    colors = get_colors(color_opt, particles, max_step)
+    
+    scatter = ax.scatter(
+        positions[:,0], positions[:,1], positions[:,2],
+        c=colors, s=10, alpha=0.8
+    )
+    ax.set_box_aspect([1,1,1])
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    st.pyplot(fig)
+
+def plot_plotly_points(positions, color_opt, particles, radius):
+    fig = go.Figure()
+    
+    max_step = max(p['added_step'] for p in particles)
+    colors = get_colors(color_opt, particles, max_step)
+    
+    fig.add_trace(go.Scatter3d(
+        x=positions[:,0], y=positions[:,1], z=positions[:,2],
+        mode='markers',
+        marker=dict(
+            size=8 * radius,
+            color=[f'rgba({c[0]*255},{c[1]*255},{c[2]*255},{c[3]})' if isinstance(c, tuple) else c for c in colors],
+            opacity=0.8,
+            line=dict(color='black', width=0.5)
+        )
+    ))
+    
+    fig.update_layout(
+        scene=dict(
+            xaxis_title='X',
+            yaxis_title='Y',
+            zaxis_title='Z',
+            aspectmode='data'
+        ),
+        margin=dict(l=0, r=0, b=0, t=0),
+        scene_camera=dict(eye=dict(x=1.5, y=1.5, z=1.5))
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+def plot_plotly_spheres(positions, color_opt, particles, radius):
+    fig = go.Figure()
+    
+    max_step = max(p['added_step'] for p in particles)
+    colors = get_colors(color_opt, particles, max_step)
+    
+    def ms(x, y, z, radius, resolution=8):
+        u, v = np.mgrid[0:2*np.pi:resolution*2j, 0:np.pi:resolution*1j]
+        X = radius * np.cos(u) * np.sin(v) + x
+        Y = radius * np.sin(u) * np.sin(v) + y
+        Z = radius * np.cos(v) + z
+        return (X, Y, Z)
+    
+    for i, pos in enumerate(positions):
+        color = colors[i]
+        if isinstance(color, tuple) and len(color) == 4:
+            color = f'rgba({color[0]*255},{color[1]*255},{color[2]*255},{color[3]})'
+        elif isinstance(color, np.ndarray) and len(color) == 4:
+            color = f'rgba({color[0]*255},{color[1]*255},{color[2]*255},{color[3]})'
+        
+        x_s, y_s, z_s = ms(pos[0], pos[1], pos[2], radius, resolution=8)
+        fig.add_trace(go.Surface(
+            x=x_s, y=y_s, z=z_s,
+            colorscale=[[0, color], [1, color]],
+            opacity=1,
+            showscale=False
+        ))
+    
+    fig.update_layout(
+        scene=dict(
+            xaxis_title='X',
+            yaxis_title='Y',
+            zaxis_title='Z',
+            aspectmode='data'
+        ),
+        margin=dict(l=0, r=0, b=0, t=0),
+        scene_camera=dict(eye=dict(x=1.5, y=1.5, z=1.5))
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+
 with tabs[1]:
     st.title("Single Aggregate Generator")
     
-    col_params, col_viz = st.columns([1, 2])
-    
-    with col_params:
+    # Parameters column
+    with st.sidebar:
         st.subheader("Generation Parameters")
-        
         N = st.slider("Number of particles", 10, 5000, 500, key='sin_agg_N')
-        st.caption("Total particles in the aggregate. Larger values increase computation time.")
-        
         p = st.slider("Inactivation probability", 0.0, 1.0, 0.05, key='sin_agg_p')
-        st.caption("Probability that a particle becomes inactive after growth. Higher values create more branched structures.")
-        
         overlap = st.slider("Particle overlap", 0.0, 0.9, 0.0, key='sin_agg_ove')
-        st.caption("Fraction of particle diameter allowed to overlap. 0.0 = hard spheres.")
-        
         cell_size = st.slider("Cell size", 2.0, 10.0, 4.0, key='sin_agg_cellsize')
-        st.caption("Spatial grid cell size for efficient collision detection.")
-        
         radius = st.slider("Particle radius", 0.5, 5.0, 1.0, key='sin_agg_rad')
-        st.caption("Radius of individual particles in the aggregate.")
         
-        # Add animation controls
-        show_animation = st.checkbox("Show growth animation", value=False)
-        speed = None
-        if show_animation:
-            speed = st.selectbox("Animation speed", 
-                               ["Slow (5 particles/sec)", 
-                                "Medium (20 particles/sec)", 
-                                "Fast (50 particles/sec)"],
-                               index=1)
-        
-        if st.button("Generate Aggregate"):
-            # Modify generate_fractal_aggregate to track intermediate states
+        if st.button("Generate Aggregate", type="primary"):
             result = generate_fractal_aggregate(
                 N=N,
                 radius=radius,
                 inactivation_probability=p,
                 overlap=overlap,
                 cell_size=cell_size,
-                store_intermediate_states=show_animation,
                 visualize=False
             )
+            Rg = calculate_radius_of_gyration(result)
+            sf = calculate_shape_factor(result)
             
-            # Calculate metrics from final state
-            final_state = result['particles'] if show_animation else result
-            Rg = calculate_radius_of_gyration(final_state)
-            sf = calculate_shape_factor(final_state)
-            
-            # Store in session state
             st.session_state.result = result
             st.session_state.Rg = Rg
             st.session_state.sf = sf
             st.session_state.radius = radius
-            st.session_state.show_animation = show_animation
-            
-            if show_animation:
-                st.session_state.speed = speed
     
-    # Visualization section
-    with col_viz:
-        if 'result' in st.session_state:
-            if st.session_state.get('show_animation', False):
-                # Animation mode
-                result = st.session_state.result
-                intermediate_states = result['intermediate_states']
-                growth_stage = st.slider("Growth stage (%)", 0, 100, 50)
-                stage_idx = int(growth_stage / 100 * (len(intermediate_states) - 1))
-                current_state = intermediate_states[stage_idx]
-                
-                st.subheader(f"Aggregate at {growth_stage}% growth ({len(current_state)} particles)")
-                positions = np.array([p['position'] for p in current_state])
-                
-                # Same visualization options as final state
-                viz_type = st.radio("Visualization type", ["Static point cloud", "Interactive 3D"], key="anim_viz")
-                
-                if viz_type == "Static point cloud":
-                    fig = plt.figure(figsize=(8, 6))
-                    ax = fig.add_subplot(111, projection='3d')
-                    ax.scatter(positions[:,0], positions[:,1], positions[:,2], s=10, c='blue', alpha=0.8)
-                    ax.set_box_aspect([1,1,1])
-                    ax.set_xlabel('X')
-                    ax.set_ylabel('Y')
-                    ax.set_zlabel('Z')
-                    st.pyplot(fig)
-                else:
-                    fig = go.Figure()
-                    if len(positions) <= 200:
-                        def ms(x, y, z, radius, resolution=8):
-                            u, v = np.mgrid[0:2*np.pi:resolution*2j, 0:np.pi:resolution*1j]
-                            X = radius * np.cos(u) * np.sin(v) + x
-                            Y = radius * np.sin(u) * np.sin(v) + y
-                            Z = radius * np.cos(v) + z
-                            return (X, Y, Z)
-                        
-                        for pos in positions:
-                            x_s, y_s, z_s = ms(pos[0], pos[1], pos[2], st.session_state.radius, resolution=8)
-                            fig.add_trace(go.Surface(
-                                x=x_s, y=y_s, z=z_s,
-                                colorscale=[[0, 'dodgerblue'], [1, 'dodgerblue']],
-                                opacity=1,
-                                showscale=False,
-                            ))
-                    else:
-                        fig.add_trace(go.Scatter3d(
-                            x=positions[:,0], y=positions[:,1], z=positions[:,2],
-                            mode='markers',
-                            marker=dict(
-                                size=16 * st.session_state.radius,
-                                color='dodgerblue',
-                                opacity=0.9,
-                                line=dict(color='black', width=4)
-                            )
-                        ))
-                    
-                    fig.update_layout(
-                        scene=dict(
-                            xaxis_title='X',
-                            yaxis_title='Y',
-                            zaxis_title='Z',
-                            aspectmode='data'
-                        ),
-                        margin=dict(l=0, r=0, b=0, t=0),
-                        scene_camera=dict(eye=dict(x=1.5, y=1.5, z=1.5))
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
+    # Two-column visualization layout
+    if 'result' in st.session_state:
+        col_vis1, col_vis2 = st.columns(2)
+        
+        # Growth stage visualization
+        with col_vis1:
+            st.subheader("Growth Stage")
+            growth_stage = st.slider("Growth stage (%)", 0, 100, 50, key="growth_slider")
+            stage_idx = int(growth_stage / 100 * (len(st.session_state.result['intermediate_states']) - 1))
+            current_state = st.session_state.result['intermediate_states'][stage_idx]
             
-            # Final result display (always shown below animation)
-            st.markdown("---")
+            # Visualization options
+            viz_type1 = st.selectbox("Visualization type", 
+                                    ["Static point cloud", "3D point cloud", "3D spheres (N<201)"],
+                                    key="viz1")
+            color_opt1 = st.selectbox("Color by", ["blue", "addition order", "activity"], key="color1")
+            
+            positions1 = np.array([p['position'] for p in current_state])
+            if viz_type1 == "Static point cloud":
+                plot_static(positions1, color_opt1, current_state)
+            elif viz_type1 == "3D point cloud":
+                plot_plotly_points(positions1, color_opt1, current_state, st.session_state.radius)
+            else:  # 3D spheres
+                if len(positions1) <= 200:
+                    plot_plotly_spheres(positions1, color_opt1, current_state, st.session_state.radius)
+                else:
+                    st.warning("This type of visualisation is not currently supported for an aggregate composed of more than 200 particles. Please choose a different type of visualisation or generate a different aggregate")
+        
+        # Final aggregate visualization
+        with col_vis2:
             st.subheader("Final Aggregate")
-            if isinstance(st.session_state.result, dict) and 'particles' in st.session_state.result:
-                particles_to_use = st.session_state.result['particles']
-            else:
-                particles_to_use = st.session_state.result
-
-            positions = np.array([p['position'] for p in particles_to_use])
+            viz_type2 = st.selectbox("Visualization type", 
+                                    ["Static point cloud", "3D point cloud", "3D spheres (N<201)"],
+                                    key="viz2")
+            color_opt2 = st.selectbox("Color by", ["blue", "addition order", "activity"], key="color2")
             
-            viz_type = st.radio("Visualization type", ["Static point cloud", "Interactive 3D (for N<201)"], key="final_viz")
-            
-            if viz_type == "Static point cloud":
-                fig = plt.figure(figsize=(8, 6))
-                ax = fig.add_subplot(111, projection='3d')
-                ax.scatter(positions[:,0], positions[:,1], positions[:,2], s=10, c='blue', alpha=0.8)
-                ax.set_box_aspect([1,1,1])
-                ax.set_xlabel('X')
-                ax.set_ylabel('Y')
-                ax.set_zlabel('Z')
-                st.pyplot(fig)
-            else:
-                fig = go.Figure()
-                if len(positions) <= 200:
-                    def ms(x, y, z, radius, resolution=8):
-                        u, v = np.mgrid[0:2*np.pi:resolution*2j, 0:np.pi:resolution*1j]
-                        X = radius * np.cos(u) * np.sin(v) + x
-                        Y = radius * np.sin(u) * np.sin(v) + y
-                        Z = radius * np.cos(v) + z
-                        return (X, Y, Z)
-                    
-                    for pos in positions:
-                        x_s, y_s, z_s = ms(pos[0], pos[1], pos[2], st.session_state.radius, resolution=8)
-                        fig.add_trace(go.Surface(
-                            x=x_s, y=y_s, z=z_s,
-                            colorscale=[[0, 'dodgerblue'], [1, 'dodgerblue']],
-                            opacity=1,
-                            showscale=False,
-                        ))
+            positions2 = np.array([p['position'] for p in st.session_state.result['particles']])
+            if viz_type2 == "Static point cloud":
+                plot_static(positions2, color_opt2, st.session_state.result['particles'])
+            elif viz_type2 == "3D point cloud":
+                plot_plotly_points(positions2, color_opt2, st.session_state.result['particles'], st.session_state.radius)
+            else:  # 3D spheres
+                if len(positions2) <= 200:
+                    plot_plotly_spheres(positions2, color_opt2, st.session_state.result['particles'], st.session_state.radius)
                 else:
-                    fig.add_trace(go.Scatter3d(
-                        x=positions[:,0], y=positions[:,1], z=positions[:,2],
-                        mode='markers',
-                        marker=dict(
-                            size=16 * st.session_state.radius,
-                            color='dodgerblue',
-                            opacity=0.9,
-                            line=dict(color='black', width=4)
-                        )
-                    ))
-                
-                fig.update_layout(
-                    scene=dict(
-                        xaxis_title='X',
-                        yaxis_title='Y',
-                        zaxis_title='Z',
-                        aspectmode='data'
-                    ),
-                    margin=dict(l=0, r=0, b=0, t=0),
-                    scene_camera=dict(eye=dict(x=1.5, y=1.5, z=1.5))
+                    st.warning("This type of visualisation is not currently supported for an aggregate composed of more than 200 particles. Please choose a different type of visualisation or generate a different aggregate")
+        
+        # Metrics below visualizations
+        st.markdown("---")
+        st.subheader("Aggregate Metrics")
+        col1, col2 = st.columns(2)
+        col1.metric("Radius of Gyration", f"{st.session_state.Rg:.4f}")
+        col2.metric("Shape Factor", f"{st.session_state.sf:.4f}")
+        
+        # Save XYZ button
+        if st.button("Save XYZ"):
+            filename = export_to_xyz(st.session_state.result['particles'])
+            with open(filename, "rb") as f:
+                st.download_button(
+                    label="Download XYZ file",
+                    data=f,
+                    file_name=filename,
+                    mime="text/plain"
                 )
-                st.plotly_chart(fig, use_container_width=True)
-            
-            # Metrics
-            st.subheader("Aggregate Metrics")
-            col1, col2 = st.columns(2)
-            col1.metric("Radius of Gyration", f"{st.session_state.Rg:.4f}")
-            col2.metric("Shape Factor", f"{st.session_state.sf:.4f}")
-            
-            # Save XYZ button
-            if st.button("Save XYZ"):
-                particles = st.session_state.result['particles'] if 'intermediate_states' in st.session_state.result else st.session_state.result
-                filename = export_to_xyz(particles)
-                with open(filename, "rb") as f:
-                    st.download_button(
-                        label="Download XYZ file",
-                        data=f,
-                        file_name=filename,
-                        mime="text/plain"
-                    )
-                st.success(f"Saved to {filename}")
+            st.success(f"Saved to {filename}")
 
 with tabs[2]:
     st.title("Multiple Aggregates Generator")
