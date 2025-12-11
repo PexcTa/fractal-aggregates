@@ -195,7 +195,11 @@ with tabs[1]:
             # Final result display (always shown below animation)
             st.markdown("---")
             st.subheader("Final Aggregate")
-            particles_to_use = st.session_state.result['particles'] if 'intermediate_states' in st.session_state.result else st.session_state.result
+            if isinstance(st.session_state.result, dict) and 'particles' in st.session_state.result:
+                particles_to_use = st.session_state.result['particles']
+            else:
+                particles_to_use = st.session_state.result
+
             positions = np.array([p['position'] for p in particles_to_use])
             
             viz_type = st.radio("Visualization type", ["Static point cloud", "Interactive 3D (for N<201)"], key="final_viz")
