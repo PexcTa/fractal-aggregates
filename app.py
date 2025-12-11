@@ -316,14 +316,14 @@ with tabs[1]:
             
             positions1 = np.array([p['position'] for p in current_state])
             if viz_type1 == "Static point cloud":
-                plot_static(positions1, color_opt1, current_state, total_N = total_N)
+                fig = plot_static(positions1, color_opt1, current_state, total_N = total_N)
                 st.pyplot(fig)
             elif viz_type1 == "3D point cloud":
-                plot_plotly_points(positions1, color_opt1, current_state, st.session_state.radius, total_N = total_N)
+                fig = plot_plotly_points(positions1, color_opt1, current_state, st.session_state.radius, total_N = total_N)
                 st.plotly_chart(fig, use_container_width=True)
             else:  # 3D spheres
                 if len(positions1) <= 200:
-                    plot_plotly_spheres(positions1, color_opt1, current_state, st.session_state.radius, total_N = total_N)
+                    fig = plot_plotly_spheres(positions1, color_opt1, current_state, st.session_state.radius, total_N = total_N)
                     st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.warning("This type of visualisation is not currently supported for an aggregate composed of more than 200 particles. Please choose a different type of visualisation or generate a different aggregate")
@@ -338,14 +338,14 @@ with tabs[1]:
             
             positions2 = np.array([p['position'] for p in st.session_state.result['particles']])
             if viz_type2 == "Static point cloud":
-                plot_static(positions2, color_opt2, st.session_state.result['particles'], total_N = total_N)
+                fig = plot_static(positions2, color_opt2, st.session_state.result['particles'], total_N = total_N)
                 st.pyplot(fig)
             elif viz_type2 == "3D point cloud":
-                plot_plotly_points(positions2, color_opt2, st.session_state.result['particles'], st.session_state.radius, total_N = total_N)
+                fig = plot_plotly_points(positions2, color_opt2, st.session_state.result['particles'], st.session_state.radius, total_N = total_N)
                 st.plotly_chart(fig, use_container_width=True)
             else:  # 3D spheres
                 if len(positions2) <= 200:
-                    plot_plotly_spheres(positions2, color_opt2, st.session_state.result['particles'], st.session_state.radius, total_N = total_N)
+                    fig = plot_plotly_spheres(positions2, color_opt2, st.session_state.result['particles'], st.session_state.radius, total_N = total_N)
                     st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.warning("This type of visualisation is not currently supported for an aggregate composed of more than 200 particles. Please choose a different type of visualisation or generate a different aggregate")
