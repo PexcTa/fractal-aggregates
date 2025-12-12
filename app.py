@@ -640,8 +640,7 @@ with tabs[2]:
                 st.subheader("Selected Aggregate Metrics")
                 col1, col2, col3, col4 = st.columns(4)
                 col1.metric("Shape Factor", f"{selected['metrics']['shape_factor']:.4f}", 
-                            help="Radius of gyration (R$_g$) characterizes the size of the aggregate. "
-                            "Defined as R$_g$ = (1/N) * $\sqrt{\sum_{i,j>1}^{N} r_{i,j}^2}}$, where $r_{i,j}$ is the distance between particles $\emph{i}$ and $\emph{j}$.")
+                            help=r"Radius of gyration (R$_g$) characterizes the size of the aggregate. Defined as $R_g = \frac{1}{N} \sqrt{\sum_{i,j>1}^{N}r_{i,j}^2}}$, where $r_{i,j}$ is the distance between particles $\emph{i}$ and $\emph{j}$.")
                 col2.metric("Rg", f"{selected['metrics']['Rg']:.4f}")
                 col3.metric("Mass Fractal Dim", f"{selected['metrics']['df_v2']:.4f}")
                 col4.metric("Porosity", f"{selected['metrics']['porosity']:.4f}")
