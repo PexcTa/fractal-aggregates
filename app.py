@@ -27,15 +27,45 @@ def export_to_xyz(particles, filename="aggregate.xyz"):
     return filename
 
 # Tabs setup
-tabs = st.tabs(["Introduction", "Single Aggregate", "Multiple Aggregates", "Agglomerates"])
+tabs = st.tabs(["Introduction", "The Algorithm and the Math", "Single Aggregate", "Multiple Aggregates", "Agglomerates"])
 
 with tabs[0]:
-    st.title("Fractal Aggregate Generator")
+    st.title("Porous Eden Mass Fractal Aggregate Generator")
     st.markdown("""
     ## Introduction (Work in Progress)
     
-    Particles aggregate. It's what they do. They might form separately and stick together, like soot does, or they might grow on top of each other, like cancer tumours. The pattern of aggregation determines morphology, and morphology can be critically important for real-world properties, like mobility in the environment. Sometimes, it's important to be able to describe and simulate particle aggregates.
+    Small particles aggregate. It's what they do. They might form separately and stick together, like soot does, or they might grow on top of each other, like cancer tumours. The pattern of aggregation determines morphology, and morphology can be critically important for real-world properties, like mobility in the environment. Sometimes, it's important to be able to describe and simulate particle aggregates.
+    
+    Aggregation often forms fractal structures. The word structure is used in a broad sense here: patterns can be fractal too. A true fractal is an object that appears the same regardless of the magnification scale. It is pretty obvious that true infinite fractals do not exist in nature, because everything has a boundary. However, there are some systems the fractal character of which is easily observed. 
+                
+    Take, for example, the coastline problem. The image below depicts the isle of Kolguyev (Courtesy of Google Maps). The island was first <i>formally</i> explored by the English explorer and ornithologist Aubyn Trevor-Battye in 1894, but has been inhabited for much longer than that by the ingidenous Nenets people.""")
+    
+    col1, col2, col3 = st.columns([1,2,1])
+    with col2:
+        st.image("images/kolguev.png", caption="The island of Kolguyev in the Russian Arctic", width=1500, )
+
+    st.markdown("""
+                
+    Trevor-Battye spent a lot of time trying to approach Kolguyev and got a pretty good view of its western shores. If I tasked Trevor-Battye (or you, the reader) with measuring the total coastline of Kolguyev, the usual approach would be to imagine some sort of an envelope that contains all of Kolguyev
+    and measure its perimeter. The problem, however, is that if you zoom in on the island, you will find that your envelope won't properly capture its jagged shores:""")
+
+    col1, col2, col3 = st.columns([1,2,1])
+    with col2:
+        st.image("images/zoomin.png", caption="It looks beautiful there. Trevor-Battye landed a little further to the north.", width=1500, )
+
+    st.markdown("""
+    See that? There is a big, wet-looking section where making an outline of the coast is quite challenging. If we keep zooming in, we will find more nooks and crannies. 
+                
+    And if you zoom in on the nooks and crannnies, you will, perhaps, find rocks (or icy sheets) with jagged edges. And if you zoom in on the edges, you will find cracks. 
+                
+    Eventually, you hit crystal faces, defects, single atoms; you go through multiple large steps in scale and yet you'll see very similar images with edges, cracks, irregularities, and your envelope will get ever tighter, and, as a result, larger. There is an end to it somewhere, but, suffice it to say, the fractal character of the coastline means it has to be approximated to some degree, by some convention. 
+                
+    It is easy to see that if you have particles aggregating into larger particles, fractal character arises naturally. The larger particle - the aggregate - may look like, for example, a sphere, but, if you zoom in, you'll find smaller particles. This application will let you experiment with generating mass fractal aggregates. For more information on mass fractal aggregates, the mathematics, and the algorithm used in this application, please go to the <b>"The Algorithm and the Math" tab</b>. Otherwise, feel free to check out the simulation sections."""
+                
+with tabs[1]:
+    st.markdown("""
     There are a few approaches towards simulating aggregation. A few excellent introductory articles and reviews are listed below in the Bibliography section.$^{1-3}$
+    
     The code under the hood of this app is based on the Porous Eden model as described by Guesnet et al.$^4$ The approach is agnostic of physics. In other words, it is purely geometry-based. The simulated structures are mainly useful for scattering data analysis. They are also aesthetically pleasing.         
 
     ### The Algorithm 
@@ -305,7 +335,7 @@ def plot_plotly_spheres(positions, color_opt, particles, radius, total_N):
     return fig
 
 
-with tabs[1]:
+with tabs[2]:
     st.title("Single Aggregate Generator")
     
     # Parameters column
@@ -411,7 +441,7 @@ with tabs[1]:
                 )
             st.success(f"Saved to {filename}")
 
-with tabs[2]:
+with tabs[3]:
     st.title("Multiple Aggregates Generator")
     
     # Parameters
@@ -420,9 +450,9 @@ with tabs[2]:
         col1, col2 = st.columns(2)
         with col1:
             num_aggregates = st.slider("Number of aggregates", 1, 500, 5)
-            st.caption("Total number of aggregates to generate. Larger values increases computation time.")
+            st.caption("Total number of aggregates to generate. Larger values increase computation time.")
             N = st.slider("Particles per aggregate", 10, 1000, 100)
-            st.caption("Total number of particles in the aggregate. Larger values increases aggregate size and computation time.")
+            st.caption("Total number of particles in the aggregate. Larger values increase aggregate size and computation time.")
             p = st.slider("Inactivation probability", 0.0, 1.0, 0.05)
             st.caption("The probability to inactivate a particle after another one attaches. Large p increases branching.")
         with col2:
@@ -536,16 +566,21 @@ with tabs[2]:
         st.subheader("Summary Statistics")
         
         col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Mean Rg", f"{np.mean(metrics['Rg']):.4f}")
-        col2.metric("Mean Shape Factor", f"{np.mean(metrics['shape_factor']):.4f}")
+        col1.metric("Mean Shape Factor", f"{np.mean(metrics['shape_factor']):.2f}",
+                    help="Describes shape. The closer the shape factor to 1, the more point- or sphere-like the particle is.")
+        col2.metric("Mean Rg", f"{np.mean(metrics['Rg']):.2f}", 
+                    help="Radius of gyration. Describes size. The relationship between $R_g$ and radius of the particle depends on the shape of the particle.")
+        
         
         if valid_df_v2:
-            col3.metric("Mean Mass Fractal Dim", f"{np.mean(valid_df_v2):.4f}")
+            col3.metric("Mean Mass Fractal Dim", f"{np.mean(valid_df_v2):.2f}", 
+                        help="Fractal dimension. Typical values for this model lie between 1 and 3. The closer this value is to 3, the more compact the particle is. Lower values indicate branching and porosity.")
         else:
             col3.warning("No valid df values")
             
         if valid_porosity:
-            col4.metric("Mean Porosity", f"{np.mean(valid_porosity):.4f}")
+            col4.metric("Mean Porosity", f"{np.mean(valid_porosity):.2f}", 
+                        help="This describes the proportion of empty space in the particle envelope. Likely to be a gross approximation due to the simplified methods used.")
         else:
             col4.warning("No valid porosity values")
     
@@ -634,16 +669,19 @@ with tabs[2]:
                         fig = plot_plotly_spheres(positions, color_opt_agg, selected['particles'], radius, total_N)
                         st.plotly_chart(fig, use_container_width=True, key=f"agg_viz_spheres_{color_opt_agg}")
                     else:
-                        st.warning("This type of visualisation is not currently supported for an aggregate composed of more than 200 particles. Please choose a different type of visualisation or generate a different aggregate")
+                        st.warning("This type of visualisation is not currently supported for an aggregate composed of more than 200 particles. Please choose a different type of visualisation or generate a smaller aggregate.")
                 
                 # Display metrics for the selected aggregate
                 st.subheader("Selected Aggregate Metrics")
                 col1, col2, col3, col4 = st.columns(4)
-                col1.metric("Shape Factor", f"{selected['metrics']['shape_factor']:.4f}", 
-                            help=r"Radius of gyration (R$_g$) characterizes the size of the aggregate. Defined as $R_g = \frac{1}{N} \sqrt{\sum_{i,j>1}^{N}r_{i,j}^2}}$, where $r_{i,j}$ is the distance between particles $\emph{i}$ and $\emph{j}$.")
-                col2.metric("Rg", f"{selected['metrics']['Rg']:.4f}")
-                col3.metric("Mass Fractal Dim", f"{selected['metrics']['df_v2']:.4f}")
-                col4.metric("Porosity", f"{selected['metrics']['porosity']:.4f}")
+                col1.metric("Shape Factor", f"{selected['metrics']['shape_factor']:.2f}",
+                            help="Describes shape. The closer the shape factor to 1, the more point- or sphere-like the particle is.")
+                col2.metric("Rg", f"{selected['metrics']['Rg']:.2f}", 
+                            help="Radius of gyration. Describes size. The relationship between $R_g$ and radius of the particle depends on the shape of the particle.")
+                col3.metric("Df", f"{selected['metrics']['df_v2']:.2f}", 
+                            help="Fractal dimension. Typical values for this model lie between 1 and 3. The closer this value is to 3, the more compact the particle is. Lower values indicate branching and porosity.")
+                col4.metric("Porosity", f"{selected['metrics']['porosity']:.2f}", 
+                            help="This describes the proportion of empty space in the particle envelope. Likely to be a gross approximation due to the simplified methods used.")
 
                 # Save buttons
                 col1, col2 = st.columns(2)
