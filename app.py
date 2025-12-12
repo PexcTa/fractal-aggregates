@@ -42,7 +42,7 @@ with tabs[0]:
     
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
-        st.image("images/kolguev.png", caption="The island of Kolguyev in the Russian Arctic", width=1500, )
+        st.image("images/kolguev.png", caption="The island of Kolguyev in the Russian Arctic", width=500, )
 
     st.markdown("""
                 
@@ -51,7 +51,7 @@ with tabs[0]:
 
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
-        st.image("images/zoomin.png", caption="It looks beautiful there. Trevor-Battye landed a little further to the north.", width=1500, )
+        st.image("images/zoomin.png", caption="It looks beautiful there. Trevor-Battye landed a little further to the north.", width=500, )
 
     st.markdown("""
     See that? There is a big, wet-looking section where making an outline of the coast is quite challenging. If we keep zooming in, we will find more nooks and crannies. 
