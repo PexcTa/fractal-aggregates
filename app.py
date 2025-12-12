@@ -60,7 +60,7 @@ with tabs[0]:
                 
     Eventually, you hit crystal faces, defects, single atoms; you go through multiple large steps in scale and yet you'll see very similar images with edges, cracks, irregularities, and your envelope will get ever tighter, and, as a result, larger. There is an end to it somewhere, but, suffice it to say, the fractal character of the coastline means it has to be approximated to some degree, by some convention. 
                 
-    It is easy to see that if you have particles aggregating into larger particles, fractal character arises naturally. The larger particle - the aggregate - may look like, for example, a sphere, but, if you zoom in, you'll find smaller particles. This application will let you experiment with generating mass fractal aggregates. For more information on mass fractal aggregates, the mathematics, and the algorithm used in this application, please go to the <b>"The Algorithm and the Math" tab</b>. Otherwise, feel free to check out the simulation sections."""
+    It is easy to see that if you have particles aggregating into larger particles, fractal character arises naturally. The larger particle - the aggregate - may look like, for example, a sphere, but, if you zoom in, you'll find smaller particles. This application will let you experiment with generating mass fractal aggregates. For more information on mass fractal aggregates, the mathematics, and the algorithm used in this application, please go to the <b>"The Algorithm and the Math" tab</b>. Otherwise, feel free to check out the simulation sections.""")
                 
 with tabs[1]:
     st.markdown("""
