@@ -64,13 +64,40 @@ with tabs[0]:
                 
 with tabs[1]:
     st.markdown("""
+
+    ## On Fractal Aggregates
+
+    ### Terminology
+
+    Let us define a *particle* as a bit of matter. For the purposes of this discussion, let us consider spherical particles with an arbitrary radius R. 
+                
+    In that case, an *aggregate* is a collection of particles sticking together. The algorithm used in this web application does not take interaction energy into account (indeed, there is no physical knowledge utilised). Therefore, we will not make any assumptions about the force causing particles to stick. 
+    
+    Another important term is an *agglomerate*. The distinction between aggregates and agglomerates is not exactly consistent; one common way to draw it is to state that aggregates arise from strong interactions, and agglomerates from weak interactions. This exercise, as stated above, does not have an interaction energy scale. Instead, we will define an agglomerate as a collection of aggregates. This will be explained below.
+    
+    Any aggregate is defined as containing a given number of particles. The number of particles per aggregate, *z*, will be referred to as the *degree of aggregation*.
+    
+    It is easy to see that aggregation of particles produces rough interfaces. A rough interface is any interface that presents inhomogeneities, irregularities, empty spaces interspersed with solid material, i.e. any interface that is not perfectly smooth. If you would like to prove to yourself that aggregating particles will always produce at least some roughness, try the following exercise: take a sheet of paper, choose a flat particle shape, and try to "tile" the sheet with that shape such that there are no gaps between your particles. You will find that there is a limited number of shapes you can use (and a circle is not among them). 
+                
+    Broadly speaking, rough fractal interfaces can be divided into two categories: *surface fractals* and *mass fractals*. A surface fractal is a mass presenting surface roughness but no internal voids, i.e. it only appears fractal at the surface. A mass fractal is a material that exhibits fractal properties throughout the volume it occupies. The image below illustrates the distinction.
+                
+    Fractal type is determined by a numerical quantity known as the fractal dimension. This application is meant to generate mass fractals; however, occasionally surface fractals will also be observed. 
+
+    By definition, mass fractals are porous. Porosity is a quantity that describes how much of a particle's volume is just empty space. When we talk of a particle volume here, we mean the volume of its envelope. If you haven't encountered the concept of envelope volume before, one easy way to visualise it is by looking at your coffee cup. The envelope volume of a coffee cup is the combination of the solid cup and the maximum quantity of liquid it may contain.
+                
+    Our particles will be spherical, but the aggregates can take very diverse shapes. It can be useful to understand the shape of an aggregate. One metric to do so is the *shape factor*, which, in essence, tells us how much does the shape deviate from a perfect sphere.
+                
+    The basic version of the algorithm is written for *monodisperse* particles. Monodispersity means that all the particles are of the same size and shape. Monodispersity is a useful simplifying assumption.
+    
+    ### The Algorithm  
+    
     There are a few approaches towards simulating aggregation. A few excellent introductory articles and reviews are listed below in the Bibliography section.$^{1-3}$
     
-    The code under the hood of this app is based on the Porous Eden model as described by Guesnet et al.$^4$ The approach is agnostic of physics. In other words, it is purely geometry-based. The simulated structures are mainly useful for scattering data analysis. They are also aesthetically pleasing.         
+    The code under the hood of this app is based on the Porous Eden model as described by Guesnet et al.$^4$ The approach is agnostic of physics. In other words, it is purely geometry-based. The simulated structures are mainly useful for scattering data analysis. They are also aesthetically pleasing.
 
-    ### The Algorithm 
-
-    Describe the algorithm here.
+    The description below is taken directly from Guesnet et al.$^4$ with added commentary. 
+    
+    
     
     ### Relevant Mathematical Background
     
