@@ -30,37 +30,38 @@ def export_to_xyz(particles, filename="aggregate.xyz"):
 tabs = st.tabs(["Introduction", "The Algorithm and the Math", "Single Aggregate", "Multiple Aggregates", "Agglomerates"])
 
 with tabs[0]:
-    st.title("Porous Eden Mass Fractal Aggregate Generator")
-    st.markdown("""
-    ## Introduction (Work in Progress)
-    
-    Small particles aggregate. It's what they do. They might form separately and stick together, like soot does, or they might grow on top of each other, like cancer tumours. The pattern of aggregation determines morphology, and morphology can be critically important for real-world properties, like mobility in the environment. Sometimes, it's important to be able to describe and simulate particle aggregates.
-    
-    Aggregation often forms fractal structures. The word structure is used in a broad sense here: patterns can be fractal too. A true fractal is an object that appears the same regardless of the magnification scale. It is pretty obvious that true infinite fractals do not exist in nature, because everything has a boundary. However, there are some systems the fractal character of which is easily observed. 
-                
-    Take, for example, the coastline problem. The image below depicts the isle of Kolguyev (Courtesy of Google Maps). The island was first *formally* explored by the English explorer and ornithologist Aubyn Trevor-Battye in 1894, but has been inhabited for much longer than that by the ingidenous Nenets people.""")
-    
-    col1, col2, col3 = st.columns([1,2,1])
+    col1, col2, col3 = st.columns([1,4,1])
     with col2:
+        st.title("Porous Eden Mass Fractal Aggregate Generator")
+        st.markdown("""
+        ## Introduction (Work in Progress)
+        
+        Small particles aggregate. It's what they do. They might form separately and stick together, like soot does, or they might grow on top of each other, like cancer tumours. The pattern of aggregation determines morphology, and morphology can be critically important for real-world properties, like mobility in the environment. Sometimes, it's important to be able to describe and simulate particle aggregates.
+        
+        Aggregation often forms fractal structures. The word structure is used in a broad sense here: patterns can be fractal too. A true fractal is an object that appears the same regardless of the magnification scale. It is pretty obvious that true infinite fractals do not exist in nature, because everything has a boundary. However, there are some systems the fractal character of which is easily observed. 
+                    
+        Take, for example, the coastline problem. The image below depicts the isle of Kolguyev (Courtesy of Google Maps). The island was first *formally* explored by the English explorer and ornithologist Aubyn Trevor-Battye in 1894, but has been inhabited for much longer than that by the ingidenous Nenets people.""")
+        
+        
+        
         st.image("images/kolguev.png", caption="The island of Kolguyev in the Russian Arctic", width=500, )
 
-    st.markdown("""
-                
-    Trevor-Battye spent a lot of time trying to approach Kolguyev and got a pretty good view of its western shores. If I tasked Trevor-Battye (or you, the reader) with measuring the total coastline of Kolguyev, the usual approach would be to imagine some sort of an envelope that contains all of Kolguyev
-    and measure its perimeter. The problem, however, is that if you zoom in on the island, you will find that your envelope won't properly capture its jagged shores:""")
+        st.markdown("""
+                    
+        Trevor-Battye spent a lot of time trying to approach Kolguyev and got a pretty good view of its western shores. If I tasked Trevor-Battye (or you, the reader) with measuring the total coastline of Kolguyev, the usual approach would be to imagine some sort of an envelope that contains all of Kolguyev
+        and measure its perimeter. The problem, however, is that if you zoom in on the island, you will find that your envelope won't properly capture its jagged shores:""")
 
-    col1, col2, col3 = st.columns([1,2,1])
-    with col2:
+
         st.image("images/zoomin.png", caption="It looks beautiful there. Trevor-Battye landed a little further to the north.", width=500, )
 
-    st.markdown("""
-    See that? There is a big, wet-looking section where making an outline of the coast is quite challenging. If we keep zooming in, we will find more nooks and crannies. 
-                
-    And if you zoom in on the nooks and crannnies, you will, perhaps, find rocks (or icy sheets) with jagged edges. And if you zoom in on the edges, you will find cracks. 
-                
-    Eventually, you hit crystal faces, defects, single atoms; you go through multiple large steps in scale and yet you'll see very similar images with edges, cracks, irregularities, and your envelope will get ever tighter, and, as a result, larger. There is an end to it somewhere, but, suffice it to say, the fractal character of the coastline means it has to be approximated to some degree, by some convention. 
-                
-    It is easy to see that if you have particles aggregating into larger particles, fractal character arises naturally. The larger particle - the aggregate - may look like, for example, a sphere, but, if you zoom in, you'll find smaller particles. This application will let you experiment with generating mass fractal aggregates. For more information on mass fractal aggregates, the mathematics, and the algorithm used in this application, please go to the **"The Algorithm and the Math"** tab. Otherwise, feel free to check out the simulation sections.""")
+        st.markdown("""
+        See that? There is a big, wet-looking section where making an outline of the coast is quite challenging. If we keep zooming in, we will find more nooks and crannies. 
+                    
+        And if you zoom in on the nooks and crannnies, you will, perhaps, find rocks (or icy sheets) with jagged edges. And if you zoom in on the edges, you will find cracks. 
+                    
+        Eventually, you hit crystal faces, defects, single atoms; you go through multiple large steps in scale and yet you'll see very similar images with edges, cracks, irregularities, and your envelope will get ever tighter, and, as a result, larger. There is an end to it somewhere, but, suffice it to say, the fractal character of the coastline means it has to be approximated to some degree, by some convention. 
+                    
+        It is easy to see that if you have particles aggregating into larger particles, fractal character arises naturally. The larger particle - the aggregate - may look like, for example, a sphere, but, if you zoom in, you'll find smaller particles. This application will let you experiment with generating mass fractal aggregates. For more information on mass fractal aggregates, the mathematics, and the algorithm used in this application, please go to the **"The Algorithm and the Math"** tab. Otherwise, feel free to check out the simulation sections.""")
                 
 with tabs[1]:
     st.markdown("""
