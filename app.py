@@ -5,12 +5,14 @@ import plotly.graph_objects as go
 from io import BytesIO
 import os
 from fractal_generator import (
-    LinkedCellGrid,
+    ParticleLevelGrid,
+    AggregateLevelGrid,
     generate_fractal_aggregate,
     calculate_radius_of_gyration,
     calculate_shape_factor,
     calculate_porosity,
-    calculate_structure_factor
+    calculate_structure_factor,
+    generate_agglomerate,
 )
 
 # widescreen view
@@ -779,3 +781,185 @@ with tabs[3]:
                             file_name="all_aggregates.zip",
                             mime="application/zip"
                         )
+
+with tabs[4]:
+    st.title("Agglomerate Generator")
+    st.caption("Generate hierarchical structures by assembling primary aggregates")
+    
+    # Parameters section
+    with st.expander("Primary Aggregate Parameters", expanded=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            num_primary = st.slider("Number of primary aggregates", 5, 200, 50)
+            N_primary = st.slider("Particles per primary aggregate", 10, 500, 100)
+            p_primary = st.slider("Inactivation probability (primary)", 0.0, 1.0, 0.1)
+        with col2:
+            overlap_primary = st.slider("Particle overlap (primary)", 0.0, 0.9, 0.1)
+            cell_size_primary = st.slider("Cell size (primary)", 2.0, 10.0, 4.0)
+            radius_primary = st.slider("Particle radius (primary)", 0.5, 5.0, 1.0)
+    
+    with st.expander("Agglomerate Assembly Parameters", expanded=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            use_all = st.checkbox("Use all primary aggregates", value=True)
+            N_sub = None
+            if not use_all:
+                N_sub = st.slider("Number of aggregates to use", 2, num_primary, min(20, num_primary))
+        with col2:
+            contact_scaling = st.slider("Contact scaling factor", 0.5, 2.0, 1.0)
+            macro_beta = st.slider("Macro cell size factor (β)", 1.0, 5.0, 2.5)
+            random_seed = st.number_input("Random seed", value=42, min_value=0)
+    
+    if st.button("Generate Agglomerate"):
+        with st.spinner("Generating primary aggregates..."):
+            # Generate primary aggregates
+            primary_aggregates = []
+            for i in range(num_primary):
+                seed = random_seed + i
+                agg = generate_fractal_aggregate(
+                    N=N_primary,
+                    radius=radius_primary,
+                    inactivation_probability=p_primary,
+                    overlap=overlap_primary,
+                    cell_size=cell_size_primary,
+                    random_seed=seed,
+                    visualize=False
+                )
+                primary_aggregates.append(agg)
+        
+        with st.spinner("Assembling agglomerate..."):
+            # Generate agglomerate
+            agglomerate = generate_agglomerate(
+                aggregates_data=primary_aggregates,
+                N_sub=N_sub,
+                contact_scaling_factor=contact_scaling,
+                macro_cell_size_beta=macro_beta,
+                random_seed=random_seed,
+                visualize=False
+            )
+            
+            # Calculate macro metrics
+            macro_positions = np.array(agglomerate['macro_level']['positions'])
+            macro_Rg = calculate_radius_of_gyration(macro_positions)
+            macro_sf = calculate_shape_factor(macro_positions)
+            
+            # Store in session state
+            st.session_state.agglomerate = agglomerate
+            st.session_state.macro_metrics = {
+                'macro_Rg': macro_Rg,
+                'macro_sf': macro_sf,
+                'num_primary': len(agglomerate['macro_level']['positions']),
+                'total_particles': len(agglomerate['particles'])
+            }
+    
+    # Visualization section
+    if 'agglomerate' in st.session_state:
+        st.markdown("---")
+        st.subheader("Agglomerate Visualization")
+        
+        col_controls, col_viz = st.columns([1, 2])
+        
+        with col_controls:
+            st.subheader("Visualization Settings")
+            viz_type = st.radio("Visualization type", ["Static point cloud", "3D point cloud"])
+            color_opt = st.selectbox("Color by", ["blue", "aggregate ID", "addition order"])
+        
+        with col_viz:
+            particles = st.session_state.agglomerate['particles']
+            positions = np.array([p['position'] for p in particles])
+            radius = radius_primary  # Use primary particle radius
+            
+            # Get coloring information
+            if color_opt == "aggregate ID":
+                colors = [p['aggregate_id'] for p in particles]
+                colorscale = "Viridis"
+                colorbar_title = "Aggregate ID"
+            elif color_opt == "addition order":
+                # Since we don't track macro addition order yet, use aggregate ID as proxy
+                colors = [p['aggregate_id'] for p in particles]
+                colorscale = "Magma"
+                colorbar_title = "Addition Order"
+            else:  # blue
+                colors = ['blue'] * len(particles)
+                colorscale = None
+                colorbar_title = None
+            
+            if viz_type == "Static point cloud":
+                fig = plt.figure(figsize=(10, 8))
+                ax = fig.add_subplot(111, projection='3d')
+                
+                scatter = ax.scatter(
+                    positions[:,0], positions[:,1], positions[:,2],
+                    c=colors, s=5, alpha=0.6, cmap='viridis' if colorscale else None
+                )
+                
+                ax.set_box_aspect([1,1,1])
+                ax.set_xlabel('X')
+                ax.set_ylabel('Y')
+                ax.set_zlabel('Z')
+                ax.set_title('Agglomerate Structure')
+                
+                if colorscale and color_opt != "blue":
+                    cbar = plt.colorbar(scatter, ax=ax, shrink=0.5)
+                    cbar.set_label(colorbar_title)
+                
+                st.pyplot(fig)
+            else:  # 3D point cloud
+                fig = go.Figure()
+                
+                fig.add_trace(go.Scatter3d(
+                    x=positions[:,0], y=positions[:,1], z=positions[:,2],
+                    mode='markers',
+                    marker=dict(
+                        size=4 * radius,
+                        color=colors,
+                        colorscale=colorscale,
+                        opacity=0.8,
+                        colorbar=dict(title=colorbar_title) if colorscale else None
+                    ),
+                    name='Particles'
+                ))
+                
+                fig.update_layout(
+                    scene=dict(
+                        xaxis_title='X',
+                        yaxis_title='Y',
+                        zaxis_title='Z',
+                        aspectmode='data'
+                    ),
+                    margin=dict(l=0, r=0, b=0, t=30),
+                    title='Agglomerate Structure'
+                )
+                
+                st.plotly_chart(fig, use_container_width=True, key="agglomerate_viz")
+        
+        # Metrics section
+        st.markdown("---")
+        st.subheader("Agglomerate Metrics")
+        
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Primary Aggregates", st.session_state.macro_metrics['num_primary'])
+        col2.metric("Total Particles", st.session_state.macro_metrics['total_particles'])
+        
+        col3.metric("Macro Radius of Gyration", f"{st.session_state.macro_metrics['macro_Rg']:.4f}",
+                   help="Size of the agglomerate at the macro scale (based on aggregate centers)")
+        
+        col4, col5 = st.columns(2)
+        col4.metric("Macro Shape Factor", f"{st.session_state.macro_metrics['macro_sf']:.4f}",
+                   help="Anisotropy of the agglomerate structure at macro scale")
+        
+        # Save XYZ button
+        if st.button("Save Agglomerate XYZ"):
+            filename = f"agglomerate_{st.session_state.macro_metrics['num_primary']}aggs.xyz"
+            xyz_content = f"{len(particles)}\n"
+            xyz_content += "Hierarchical agglomerate generated by Streamlit app\n"
+            for p in particles:
+                pos = p['position']
+                xyz_content += f"C {pos[0]:.6f} {pos[1]:.6f} {pos[2]:.6f}\n"
+            
+            st.download_button(
+                label="Download Agglomerate XYZ",
+                data=xyz_content,
+                file_name=filename,
+                mime="text/plain"
+            )
