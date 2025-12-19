@@ -132,6 +132,12 @@ with tabs[1]:
         where $\\lambda_{\\text{max}}$ and $\\lambda_{\\text{min}}$ are the maximum and minimum eigenvalues.
                     
         ### References
+        [1] Meakin, P. Fractal Aggregates. Advances in Colloid and Interface Science 1987, 28, 249–331. https://doi.org/10.1016/0001-8686(87)80016-7.
+       
+        [2] Meakin, P. A Historical Introduction to Computer Models for Fractal Aggregates. Journal of Sol-Gel Science and Technology 1999, 15 (2), 97–117. https://doi.org/10.1023/A:1008731904082.
+     
+        [3] Tomchuk, O. Models for Simulation of Fractal-like Particle Clusters with Prescribed Fractal Dimension. Fractal and Fractional 2023, 7 (12), 866. https://doi.org/10.3390/fractalfract7120866.
+        
         [4] Guesnet, E.; Dendievel, R.; Jauffrès, D.; Martin, C. L.; Yrieix, B. A Growth Model for the Generation of Particle Aggregates with Tunable Fractal Dimension. Physica A: Statistical Mechanics and its Applications 2019, 513, 63–73. https://doi.org/10.1016/j.physa.2018.07.061.
                     
         ### About the Author
