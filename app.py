@@ -30,10 +30,10 @@ def export_to_xyz(particles, filename="aggregate.xyz"):
 tabs = st.tabs(["Introduction", "The Algorithm and the Math", "Single Aggregate", "Multiple Aggregates", "Agglomerates"])
 
 with tabs[0]:
-    st.title("Porous Eden Mass Fractal Aggregate Generator")
-    st.subheader("Why care about aggregates or fractal properties?")
     col1, col2, col3 = st.columns([1,4,1])
     with col2:
+        st.title("Porous Eden Mass Fractal Aggregate Generator")
+        st.subheader("Why care about aggregates or fractal properties?")
         st.markdown("""
         ## Introduction (Work in Progress)
         
@@ -64,67 +64,69 @@ with tabs[0]:
         You'll see that if you have particles aggregating into larger particles, fractal character arises naturally. The larger particle - the aggregate - may look like, for example, a sphere, but, if you zoom in, you'll find smaller particles. This application will let you experiment with generating mass fractal aggregates. For more information on mass fractal aggregates, the mathematics, and the algorithm used in this application, please go to the **"The Algorithm and the Math"** tab. Otherwise, feel free to check out the simulation sections.""")
                 
 with tabs[1]:
-    st.markdown("""
+    col1, col2, col3 = st.columns([1,4,1])
+    with col2:
+        st.markdown("""
 
-    ## On Fractal Aggregates
+        ## On Fractal Aggregates
 
-    ### Terminology
+        ### Terminology
 
-    Let us define a *particle* as a bit of matter. For the purposes of this discussion, let us consider spherical particles with an arbitrary radius R. 
-                
-    In that case, an *aggregate* is a collection of particles sticking together. The algorithm used in this web application does not take interaction energy into account (indeed, there is no physical knowledge utilised). Therefore, we will not make any assumptions about the force causing particles to stick. 
-    
-    Another important term is an *agglomerate*. The distinction between aggregates and agglomerates is not exactly consistent; one common way to draw it is to state that aggregates arise from strong interactions, and agglomerates from weak interactions. This exercise, as stated above, does not have an interaction energy scale. Instead, we will define an agglomerate as a collection of aggregates. This will be explained below.
-    
-    Any aggregate is defined as containing a given number of particles. The number of particles per aggregate, *z*, will be referred to as the *degree of aggregation*.
-    
-    It is easy to see that aggregation of particles produces rough interfaces. A rough interface is any interface that presents inhomogeneities, irregularities, empty spaces interspersed with solid material, i.e. any interface that is not perfectly smooth. If you would like to prove to yourself that aggregating particles will always produce at least some roughness, try the following exercise: take a sheet of paper, choose a flat particle shape, and try to "tile" the sheet with that shape such that there are no gaps between your particles. You will find that there is a limited number of shapes you can use (and a circle is not among them). 
-                
-    Broadly speaking, rough fractal interfaces can be divided into two categories: *surface fractals* and *mass fractals*. A surface fractal is a mass presenting surface roughness but no internal voids, i.e. it only appears fractal at the surface. A mass fractal is a material that exhibits fractal properties throughout the volume it occupies. The image below illustrates the distinction.
-                
-    Fractal type is determined by a numerical quantity known as the fractal dimension. This application is meant to generate mass fractals; however, occasionally surface fractals will also be observed. 
+        Let us define a *particle* as a bit of matter. For the purposes of this discussion, let us consider spherical particles with an arbitrary radius R. 
+                    
+        In that case, an *aggregate* is a collection of particles sticking together. The algorithm used in this web application does not take interaction energy into account (indeed, there is no physical knowledge utilised). Therefore, we will not make any assumptions about the force causing particles to stick. 
+        
+        Another important term is an *agglomerate*. The distinction between aggregates and agglomerates is not exactly consistent; one common way to draw it is to state that aggregates arise from strong interactions, and agglomerates from weak interactions. This exercise, as stated above, does not have an interaction energy scale. Instead, we will define an agglomerate as a collection of aggregates. This will be explained below.
+        
+        Any aggregate is defined as containing a given number of particles. The number of particles per aggregate, *z*, will be referred to as the *degree of aggregation*.
+        
+        It is easy to see that aggregation of particles produces rough interfaces. A rough interface is any interface that presents inhomogeneities, irregularities, empty spaces interspersed with solid material, i.e. any interface that is not perfectly smooth. If you would like to prove to yourself that aggregating particles will always produce at least some roughness, try the following exercise: take a sheet of paper, choose a flat particle shape, and try to "tile" the sheet with that shape such that there are no gaps between your particles. You will find that there is a limited number of shapes you can use (and a circle is not among them). 
+                    
+        Broadly speaking, rough fractal interfaces can be divided into two categories: *surface fractals* and *mass fractals*. A surface fractal is a mass presenting surface roughness but no internal voids, i.e. it only appears fractal at the surface. A mass fractal is a material that exhibits fractal properties throughout the volume it occupies. The image below illustrates the distinction.
+                    
+        Fractal type is determined by a numerical quantity known as the fractal dimension. This application is meant to generate mass fractals; however, occasionally surface fractals will also be observed. 
 
-    By definition, mass fractals are porous. Porosity is a quantity that describes how much of a particle's volume is just empty space. When we talk of a particle volume here, we mean the volume of its envelope. If you haven't encountered the concept of envelope volume before, one easy way to visualise it is by looking at your coffee cup. The envelope volume of a coffee cup is the combination of the solid cup and the maximum quantity of liquid it may contain.
-                
-    Our particles will be spherical, but the aggregates can take very diverse shapes. It can be useful to understand the shape of an aggregate. One metric to do so is the *shape factor*, which, in essence, tells us how much does the shape deviate from a perfect sphere.
-                
-    The basic version of the algorithm is written for *monodisperse* particles. Monodispersity means that all the particles are of the same size and shape. Monodispersity is a useful simplifying assumption.
-    
-    ### The Algorithm  
-    
-    There are a few approaches towards simulating aggregation. A few excellent introductory articles and reviews are listed below in the Bibliography section.$^{1-3}$
-    
-    The code under the hood of this app is based on the Porous Eden model as described by Guesnet et al.$^4$ The approach is agnostic of physics. In other words, it is purely geometry-based. The simulated structures are mainly useful for scattering data analysis. They are also aesthetically pleasing.
+        By definition, mass fractals are porous. Porosity is a quantity that describes how much of a particle's volume is just empty space. When we talk of a particle volume here, we mean the volume of its envelope. If you haven't encountered the concept of envelope volume before, one easy way to visualise it is by looking at your coffee cup. The envelope volume of a coffee cup is the combination of the solid cup and the maximum quantity of liquid it may contain.
+                    
+        Our particles will be spherical, but the aggregates can take very diverse shapes. It can be useful to understand the shape of an aggregate. One metric to do so is the *shape factor*, which, in essence, tells us how much does the shape deviate from a perfect sphere.
+                    
+        The basic version of the algorithm is written for *monodisperse* particles. Monodispersity means that all the particles are of the same size and shape. Monodispersity is a useful simplifying assumption.
+        
+        ### The Algorithm  
+        
+        There are a few approaches towards simulating aggregation. A few excellent introductory articles and reviews are listed below in the Bibliography section.$^{1-3}$
+        
+        The code under the hood of this app is based on the Porous Eden model as described by Guesnet et al.$^4$ The approach is agnostic of physics. In other words, it is purely geometry-based. The simulated structures are mainly useful for scattering data analysis. They are also aesthetically pleasing.
 
-    The description below is taken directly from Guesnet et al.$^4$ with added commentary. 
-    
-    
-    
-    ### Relevant Mathematical Background
-    
-    The radius of gyration $R_g$ characterizes the size of the aggregate:
-    
-    $R_g = \\frac{1}{N}\\sqrt{\\sum_{i<j} r_{ij}^2}$
-    
-    where $N$ is the number of particles and $r_{ij}$ is the distance between particles $i$ and $j$.
-    
-    The shape factor is calculated from the eigenvalues of the inertia tensor:
-    
-    $\\text{Shape Factor} = \\
-    sqrt{\\frac{\\lambda_{\\text{max}}}{\\lambda_{\\text{min}}}}$
-    
-    where $\\lambda_{\\text{max}}$ and $\\lambda_{\\text{min}}$ are the maximum and minimum eigenvalues.
-                
-    ### References
-    [4] Guesnet, E.; Dendievel, R.; Jauffrès, D.; Martin, C. L.; Yrieix, B. A Growth Model for the Generation of Particle Aggregates with Tunable Fractal Dimension. Physica A: Statistical Mechanics and its Applications 2019, 513, 63–73. https://doi.org/10.1016/j.physa.2018.07.061.
-                
-    ### About the Author
-    This application was developed by Boris V. Kramar, PhD, while at Lomonosov Moscow State University (Radiochemistry division).
-    The algorithm is largely based on that described by Guesnet et al.$^4$ Much of the boilerplate code was written using an LLM-based assisant (Qwen3-Max). 
-    The full version of this code was used for a project on amorphous thorium dioxide. You can read the paper once it's published! There will be a link here: 
-    Visit Boris's personal website here: <link TBA>
-                
-    """)
+        The description below is taken directly from Guesnet et al.$^4$ with added commentary. 
+        
+        
+        
+        ### Relevant Mathematical Background
+        
+        The radius of gyration $R_g$ characterizes the size of the aggregate:
+        
+        $R_g = \\frac{1}{N}\\sqrt{\\sum_{i<j} r_{ij}^2}$
+        
+        where $N$ is the number of particles and $r_{ij}$ is the distance between particles $i$ and $j$.
+        
+        The shape factor is calculated from the eigenvalues of the inertia tensor:
+        
+        $\\text{Shape Factor} = \\
+        sqrt{\\frac{\\lambda_{\\text{max}}}{\\lambda_{\\text{min}}}}$
+        
+        where $\\lambda_{\\text{max}}$ and $\\lambda_{\\text{min}}$ are the maximum and minimum eigenvalues.
+                    
+        ### References
+        [4] Guesnet, E.; Dendievel, R.; Jauffrès, D.; Martin, C. L.; Yrieix, B. A Growth Model for the Generation of Particle Aggregates with Tunable Fractal Dimension. Physica A: Statistical Mechanics and its Applications 2019, 513, 63–73. https://doi.org/10.1016/j.physa.2018.07.061.
+                    
+        ### About the Author
+        This application was developed by Boris V. Kramar, PhD, while at Lomonosov Moscow State University (Radiochemistry division).
+        The algorithm is largely based on that described by Guesnet et al.$^4$ Much of the boilerplate code was written using an LLM-based assisant (Qwen3-Max). 
+        The full version of this code was used for a project on amorphous thorium dioxide. You can read the paper once it's published! There will be a link here: 
+        Visit Boris's personal website here: <link TBA>
+                    
+        """)
 
 def get_colors(color_opt, particles, total_N):
     """Get colors based on selection option, normalized to total_N"""
