@@ -44,7 +44,7 @@ with tabs[0]:
         
         
         
-        st.image("images/kolguev.png", caption="The island of Kolguyev in the Russian Arctic", width=500, )
+        st.image("images/kolguev.png", caption="The island of Kolguyev in the Russian Arctic", width=750, )
 
         st.markdown("""
                     
@@ -52,7 +52,7 @@ with tabs[0]:
         and measure its perimeter. The problem, however, is that if you zoom in on the island, you will find that your envelope won't properly capture its jagged shores:""")
 
 
-        st.image("images/zoomin.png", caption="It looks beautiful there. Trevor-Battye landed a little further to the north.", width=500, )
+        st.image("images/zoomin.png", caption="It looks beautiful there. Trevor-Battye landed a little further to the north.", width=750, )
 
         st.markdown("""
         See that? There is a big, wet-looking section where making an outline of the coast is quite challenging. If we keep zooming in, we will find more nooks and crannies. 
