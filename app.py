@@ -102,13 +102,13 @@ with tabs[1]:
         
         **1. A particle is chosen randomly among active ones.**
                     
-        2. A growth direction is chosen randomly. 
+        **2. A growth direction is chosen randomly.**
                     
-        3. If there is enough space in this direction, a new particle is added in contact. 
+        **3. If there is enough space in this direction, a new particle is added in contact.**
                     
-        4. The chosen particle may be turned inactive with an inactivation probability p. 
+        **4. The chosen particle may be turned inactive with an inactivation probability p.**
                     
-        5. The process is iterated until a specified number of particles N is reached.
+        **5. The process is iterated until a specified number of particles N is reached.**
                     
         So, after picking a particle, we compute a random 3D unit vector and check that there is enough space in that direction. If there is not enough space, we choose a new unit vector. Unlike the Guesnet et al. implementation described in the paper, frustrated attempts, i.e. attempts leading to particle overlap, are not allowed, unless the user chooses to allow partial overlap of particles. (This will make sense when you see the control sliders on the tabs to follow). Once a new particle is added, the particle we chose to add *to* may randomly turn inactive, which means that it will not serve as an attachment point again. The inactivation probability
         is one of the key parameters in this algorithm. If the inactivation probability is very high, say, 0.9+, then there is a good chance that most particles will be chosen for a new attachment only once before being deactivated. 
