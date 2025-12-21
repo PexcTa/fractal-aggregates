@@ -835,7 +835,6 @@ with tabs[4]:
                 contact_scaling_factor=contact_scaling,
                 macro_cell_size_beta=macro_beta,
                 random_seed=random_seed,
-                visualize=False
             )
             
             # Calculate macro metrics
