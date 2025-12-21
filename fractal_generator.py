@@ -410,9 +410,9 @@ def generate_agglomerate(
     for agg in aggregates:
         positions = np.array([p['position'] for p in agg])
         center = np.mean(positions, axis=0)
-        # Calculate Rg relative to center
+        # Calculate Rg relative to center using the correct function
         centered_positions = positions - center
-        Rg = calculate_radius_of_gyration(centered_positions)
+        Rg = calculate_rg_from_positions(centered_positions)  
         agg_properties.append({'Rg': Rg, 'center': center})
     
     mean_Rg = np.mean([p['Rg'] for p in agg_properties])
@@ -540,3 +540,26 @@ def generate_agglomerate(
     }
     
     return result
+
+def calculate_rg_from_positions(positions):
+    """
+    Calculate radius of gyration directly from a numpy array of positions
+    Works with both 2D and 3D coordinates
+    """
+    if isinstance(positions, list):
+        positions = np.array(positions)
+    
+    if len(positions) <= 1:
+        return 0.0
+    
+    # Calculate center of mass
+    center_of_mass = np.mean(positions, axis=0)
+    
+    # Calculate squared distances from center of mass
+    centered_positions = positions - center_of_mass
+    squared_distances = np.sum(centered_positions ** 2, axis=1)
+    
+    # Calculate radius of gyration
+    Rg = np.sqrt(np.sum(squared_distances) / len(positions))
+    
+    return Rg

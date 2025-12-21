@@ -14,6 +14,7 @@ from fractal_generator import (
     calculate_porosity,
     calculate_structure_factor,
     generate_agglomerate,
+    calculate_rg_from_positions
 )
 
 # widescreen view
@@ -858,8 +859,8 @@ with tabs[4]:
             status_text.text("Calculating agglomerate metrics...")
             
             # Calculate macro metrics
-            macro_positions = np.array([pos for pos in agglomerate['macro_level']['positions']])
-            macro_Rg = calculate_radius_of_gyration(macro_positions)
+            macro_positions = np.array(agglomerate['macro_level']['positions'])
+            macro_Rg = calculate_rg_from_positions(macro_positions)
             macro_sf = calculate_shape_factor(macro_positions)
             
             # Store in session state
