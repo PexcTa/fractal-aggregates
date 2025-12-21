@@ -35,14 +35,25 @@ class ParticleLevelGrid:
         return nearby_indices
 
 def _extract_particles(particles_or_result):
-    if isinstance(particles_or_result, dict) and 'particles' in particles_or_result:
-        particles = particles_or_result['particles']
-        parameters = particles_or_result.get('parameters', {})
-    elif isinstance(particles_or_result, list):
+    """Extract particles list and parameters from various input formats"""
+    if isinstance(particles_or_result, list):
+        # Direct list of particles
         particles = particles_or_result
         parameters = {}
+    elif isinstance(particles_or_result, dict):
+        if 'particles' in particles_or_result:
+            # Standard result format
+            particles = particles_or_result['particles']
+            parameters = particles_or_result.get('parameters', {})
+        elif 'macro_level' in particles_or_result:
+            # Agglomerate format
+            particles = particles_or_result['particles']
+            parameters = particles_or_result.get('parameters', {})
+        else:
+            raise TypeError("Dictionary input must contain 'particles' or 'macro_level' key")
     else:
-        raise TypeError("Input must be either a list of particle dicts or a result dict")
+        raise TypeError("Input must be either a list of particle dicts or a result dictionary")
+    
     return particles, parameters
 
 def generate_fractal_aggregate(
@@ -131,11 +142,29 @@ def generate_fractal_aggregate(
     return result
 
 def calculate_radius_of_gyration(particles_or_result):
+    """Calculate radius of gyration for particles or aggregate results"""
     particles, _ = _extract_particles(particles_or_result)
+    
+    if not particles:
+        return 0.0
+    
+    # Extract positions
     positions = np.array([p['position'] for p in particles])
     N = len(positions)
+    
     if N <= 1:
         return 0.0
+    
+    # Calculate center of mass
+    center_of_mass = np.mean(positions, axis=0)
+    
+    # Calculate squared distances from center of mass
+    squared_distances = np.sum((positions - center_of_mass) ** 2, axis=1)
+    
+    # Calculate radius of gyration
+    Rg = np.sqrt(np.sum(squared_distances) / N)
+    
+    return Rg
     
     sum_sq_distances = 0.0
     for i in range(N):
@@ -147,37 +176,34 @@ def calculate_radius_of_gyration(particles_or_result):
     return Rg
 
 def calculate_shape_factor(particles_or_result):
+    """Calculate shape factor (anisotropy) from inertia tensor"""
     particles, _ = _extract_particles(particles_or_result)
+    
+    if not particles or len(particles) < 3:
+        return 1.0  # Spherical by default
+    
     positions = np.array([p['position'] for p in particles])
-    centroid = np.mean(positions, axis=0)
-    centered_positions = positions - centroid
     
-    I = np.zeros((3, 3))
+    # Calculate center of mass
+    center = np.mean(positions, axis=0)
+    centered_positions = positions - center
+    
+    # Calculate inertia tensor
+    inertia_tensor = np.zeros((3, 3))
     for pos in centered_positions:
-        x, y, z = pos
-        r_squared = np.dot(pos, pos)
-        I[0, 0] += r_squared - x**2
-        I[1, 1] += r_squared - y**2
-        I[2, 2] += r_squared - z**2
-        I[0, 1] -= x * y
-        I[1, 0] -= x * y
-        I[0, 2] -= x * z
-        I[2, 0] -= x * z
-        I[1, 2] -= y * z
-        I[2, 1] -= y * z
+        r2 = np.dot(pos, pos)
+        inertia_tensor += r2 * np.eye(3) - np.outer(pos, pos)
     
-    eigenvalues, _ = np.linalg.eigh(I)
-    eigenvalues_sorted = np.sort(eigenvalues)
-    lambda_min = eigenvalues_sorted[0]
-    lambda_max = eigenvalues_sorted[-1]
+    # Get eigenvalues (moments of inertia)
+    eigenvalues = np.linalg.eigvalsh(inertia_tensor)
+    eigenvalues = np.sort(eigenvalues)  # Sort from smallest to largest
     
-    if lambda_min < 1e-15:
-        shape_factor = np.inf
-    else:
-        shape_factor = np.sqrt(lambda_max / lambda_min)
+    # Shape factor = sqrt(max_eigenvalue / min_eigenvalue)
+    if eigenvalues[0] == 0:
+        return 1.0
+    
+    shape_factor = np.sqrt(eigenvalues[2] / eigenvalues[0])
     return shape_factor
-
-# Add these functions at the bottom of fractal_generator.py
 
 def calculate_structure_factor(
     particles_or_result,

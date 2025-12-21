@@ -3,6 +3,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 import plotly.graph_objects as go
 from io import BytesIO
+import time
 import os
 from fractal_generator import (
     ParticleLevelGrid,
@@ -811,10 +812,19 @@ with tabs[4]:
             random_seed = st.number_input("Random seed", value=42, min_value=0)
     
     if st.button("Generate Agglomerate"):
-        with st.spinner("Generating primary aggregates..."):
-            # Generate primary aggregates
+        # Progress tracking
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        try:
+            status_text.text("GenerationStrategy primary aggregates...")
+            
+            # Generate primary aggregates with progress
             primary_aggregates = []
             for i in range(num_primary):
+                progress = i / (num_primary * 1.5)  # 66% for primary generation
+                progress_bar.progress(min(progress, 0.66))
+                
                 seed = random_seed + i
                 agg = generate_fractal_aggregate(
                     N=N_primary,
@@ -826,19 +836,29 @@ with tabs[4]:
                     visualize=False
                 )
                 primary_aggregates.append(agg)
-        
-        with st.spinner("Assembling agglomerate..."):
-            # Generate agglomerate
+            
+            status_text.text(f"✅ Generated {num_primary} primary aggregates")
+            st.success(f"Successfully generated {num_primary} primary aggregates with {N_primary} particles each")
+            
+            time.sleep(0.5)  # Brief pause for user feedback
+            
+            status_text.text("Assembling agglomerate...")
+            
+            # Assemble agglomerate
+            progress_bar.progress(0.7)
             agglomerate = generate_agglomerate(
                 aggregates_data=primary_aggregates,
                 N_sub=N_sub,
                 contact_scaling_factor=contact_scaling,
                 macro_cell_size_beta=macro_beta,
-                random_seed=random_seed,
+                random_seed=random_seed
             )
             
+            progress_bar.progress(0.9)
+            status_text.text("Calculating agglomerate metrics...")
+            
             # Calculate macro metrics
-            macro_positions = np.array(agglomerate['macro_level']['positions'])
+            macro_positions = np.array([pos for pos in agglomerate['macro_level']['positions']])
             macro_Rg = calculate_radius_of_gyration(macro_positions)
             macro_sf = calculate_shape_factor(macro_positions)
             
@@ -850,88 +870,105 @@ with tabs[4]:
                 'num_primary': len(agglomerate['macro_level']['positions']),
                 'total_particles': len(agglomerate['particles'])
             }
+            
+            progress_bar.progress(1.0)
+            status_text.text("✅ Agglomerate generated successfully!")
+            st.success(f"Agglomerate created with {st.session_state.macro_metrics['num_primary']} primary aggregates and {st.session_state.macro_metrics['total_particles']} total particles")
+            
+            # Auto-scroll to visualization
+            st.experimental_rerun()
+            
+        except Exception as e:
+            progress_bar.progress(0)
+            status_text.text("❌ Error during generation")
+            st.error(f"Error generating agglomerate: {str(e)}")
+            st.exception(e)
+            st.stop()
     
     # Visualization section
     if 'agglomerate' in st.session_state:
         st.markdown("---")
         st.subheader("Agglomerate Visualization")
-        
-        col_controls, col_viz = st.columns([1, 2])
-        
-        with col_controls:
-            st.subheader("Visualization Settings")
-            viz_type = st.radio("Visualization type", ["Static point cloud", "3D point cloud"])
-            color_opt = st.selectbox("Color by", ["blue", "aggregate ID", "addition order"])
-        
-        with col_viz:
-            particles = st.session_state.agglomerate['particles']
-            positions = np.array([p['position'] for p in particles])
-            radius = radius_primary  # Use primary particle radius
+        try:
+            col_controls, col_viz = st.columns([1, 2])
             
-            # Get coloring information
-            if color_opt == "aggregate ID":
-                colors = [p['aggregate_id'] for p in particles]
-                colorscale = "Viridis"
-                colorbar_title = "Aggregate ID"
-            elif color_opt == "addition order":
-                # Since we don't track macro addition order yet, use aggregate ID as proxy
-                colors = [p['aggregate_id'] for p in particles]
-                colorscale = "Magma"
-                colorbar_title = "Addition Order"
-            else:  # blue
-                colors = ['blue'] * len(particles)
-                colorscale = None
-                colorbar_title = None
+            with col_controls:
+                st.subheader("Visualization Settings")
+                viz_type = st.radio("Visualization type", ["Static point cloud", "3D point cloud"])
+                color_opt = st.selectbox("Color by", ["blue", "aggregate ID", "addition order"])
             
-            if viz_type == "Static point cloud":
-                fig = plt.figure(figsize=(10, 8))
-                ax = fig.add_subplot(111, projection='3d')
+            with col_viz:
+                particles = st.session_state.agglomerate['particles']
+                positions = np.array([p['position'] for p in particles])
+                radius = radius_primary  # Use primary particle radius
                 
-                scatter = ax.scatter(
-                    positions[:,0], positions[:,1], positions[:,2],
-                    c=colors, s=5, alpha=0.6, cmap='viridis' if colorscale else None
-                )
+                # Get coloring information
+                if color_opt == "aggregate ID":
+                    colors = [p['aggregate_id'] for p in particles]
+                    colorscale = "Viridis"
+                    colorbar_title = "Aggregate ID"
+                elif color_opt == "addition order":
+                    # Since we don't track macro addition order yet, use aggregate ID as proxy
+                    colors = [p['aggregate_id'] for p in particles]
+                    colorscale = "Magma"
+                    colorbar_title = "Addition Order"
+                else:  # blue
+                    colors = ['blue'] * len(particles)
+                    colorscale = None
+                    colorbar_title = None
                 
-                ax.set_box_aspect([1,1,1])
-                ax.set_xlabel('X')
-                ax.set_ylabel('Y')
-                ax.set_zlabel('Z')
-                ax.set_title('Agglomerate Structure')
-                
-                if colorscale and color_opt != "blue":
-                    cbar = plt.colorbar(scatter, ax=ax, shrink=0.5)
-                    cbar.set_label(colorbar_title)
-                
-                st.pyplot(fig)
-            else:  # 3D point cloud
-                fig = go.Figure()
-                
-                fig.add_trace(go.Scatter3d(
-                    x=positions[:,0], y=positions[:,1], z=positions[:,2],
-                    mode='markers',
-                    marker=dict(
-                        size=4 * radius,
-                        color=colors,
-                        colorscale=colorscale,
-                        opacity=0.8,
-                        colorbar=dict(title=colorbar_title) if colorscale else None
-                    ),
-                    name='Particles'
-                ))
-                
-                fig.update_layout(
-                    scene=dict(
-                        xaxis_title='X',
-                        yaxis_title='Y',
-                        zaxis_title='Z',
-                        aspectmode='data'
-                    ),
-                    margin=dict(l=0, r=0, b=0, t=30),
-                    title='Agglomerate Structure'
-                )
-                
-                st.plotly_chart(fig, use_container_width=True, key="agglomerate_viz")
+                if viz_type == "Static point cloud":
+                    fig = plt.figure(figsize=(10, 8))
+                    ax = fig.add_subplot(111, projection='3d')
+                    
+                    scatter = ax.scatter(
+                        positions[:,0], positions[:,1], positions[:,2],
+                        c=colors, s=5, alpha=0.6, cmap='viridis' if colorscale else None
+                    )
+                    
+                    ax.set_box_aspect([1,1,1])
+                    ax.set_xlabel('X')
+                    ax.set_ylabel('Y')
+                    ax.set_zlabel('Z')
+                    ax.set_title('Agglomerate Structure')
+                    
+                    if colorscale and color_opt != "blue":
+                        cbar = plt.colorbar(scatter, ax=ax, shrink=0.5)
+                        cbar.set_label(colorbar_title)
+                    
+                    st.pyplot(fig)
+                else:  # 3D point cloud
+                    fig = go.Figure()
+                    
+                    fig.add_trace(go.Scatter3d(
+                        x=positions[:,0], y=positions[:,1], z=positions[:,2],
+                        mode='markers',
+                        marker=dict(
+                            size=4 * radius,
+                            color=colors,
+                            colorscale=colorscale,
+                            opacity=0.8,
+                            colorbar=dict(title=colorbar_title) if colorscale else None
+                        ),
+                        name='Particles'
+                    ))
+                    
+                    fig.update_layout(
+                        scene=dict(
+                            xaxis_title='X',
+                            yaxis_title='Y',
+                            zaxis_title='Z',
+                            aspectmode='data'
+                        ),
+                        margin=dict(l=0, r=0, b=0, t=30),
+                        title='Agglomerate Structure'
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True, key="agglomerate_viz")
         
+        except Exception as e:
+            st.error(f"Error in visualization: {str(e)}")
+            st.caption("Try different visualization settings or regenerate the agglomerate")
         # Metrics section
         st.markdown("---")
         st.subheader("Agglomerate Metrics")
