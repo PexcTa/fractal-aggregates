@@ -285,35 +285,6 @@ def calculate_aggregate_properties(aggregate_particles):
     rg = calculate_radius_of_gyration(positions - center)
     return rg, center
 
-class ParticleLevelGrid:
-    """Simple spatial grid for collision detection at macro scale"""
-    def __init__(self, cell_size):
-        self.cell_size = cell_size
-        self.grid = {}
-    
-    def _get_cell(self, position):
-        return tuple((position / self.cell_size).astype(int))
-    
-    def add_particle(self, idx, position):
-        cell = self._get_cell(position)
-        if cell not in self.grid:
-            self.grid[cell] = []
-        self.grid[cell].append(idx)
-    
-    def get_neighbors(self, position, radius):
-        cell = self._get_cell(position)
-        neighbors = []
-        search_range = int(np.ceil(radius / self.cell_size))
-        
-        for dx in range(-search_range, search_range+1):
-            for dy in range(-search_range, search_range+1):
-                for dz in range(-search_range, search_range+1):
-                    check_cell = (cell[0]+dx, cell[1]+dy, cell[2]+dz)
-                    if check_cell in self.grid:
-                        neighbors.extend(self.grid[check_cell])
-        
-        return neighbors
-
 class AggregateLevelGrid:
     """Spatial grid for efficient aggregate-level collision detection"""
     def __init__(self, cell_size):
