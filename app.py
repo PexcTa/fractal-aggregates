@@ -14,7 +14,7 @@ from fractal_generator import (
     calculate_porosity,
     calculate_structure_factor,
     generate_agglomerate,
-    calculate_rg_from_positions
+    calculate_rg_from_positions,
 )
 
 # widescreen view
