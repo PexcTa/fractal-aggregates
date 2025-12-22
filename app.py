@@ -785,75 +785,93 @@ with tabs[3]:
                         )
 
 with tabs[4]:
-    st.title("Agglomerate Generator - DEBUG MODE")
+    st.title("Agglomerate Generator")
+    st.caption("Generate hierarchical structures by assembling primary aggregates")
+    # Parameters section
+    with st.expander("Primary Aggregate Parameters", expanded=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            num_primary = st.slider("Number of primary aggregates", 5, 200, 50)
+            N_primary = st.slider("Particles per primary aggregate", 10, 500, 100)
+            p_primary = st.slider("Inactivation probability (primary)", 0.0, 1.0, 0.1)
+        with col2:
+            overlap_primary = st.slider("Particle overlap (primary)", 0.0, 0.9, 0.1)
+            cell_size_primary = st.slider("Cell size (primary)", 2.0, 10.0, 4.0)
+            radius_primary = st.slider("Particle radius (primary)", 0.5, 5.0, 1.0)
+    with st.expander("Agglomerate Assembly Parameters", expanded=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            use_all = st.checkbox("Use all primary aggregates", value=True)
+            N_sub = None
+            if not use_all:
+                N_sub = st.slider("Number of aggregates to use", 2, num_primary, min(20, num_primary))
+        with col2:
+            contact_scaling = st.slider("Contact scaling factor", 0.5, 2.0, 1.0)
+            macro_beta = st.slider("Macro cell size factor (β)", 1.0, 5.0, 2.5)
+            random_seed = st.number_input("Random seed", value=42, min_value=0)
     
-    if st.button("Generate Test Aggregates Only"):
-        try:
-            # Generate just 3 simple aggregates for testing
-            test_aggregates = []
-            for i in range(3):
+    if st.button("Generate Agglomerate", type="primary"):
+        with st.spinner("Generating primary aggregates..."):
+            primary_aggregates = []
+            for i in range(num_primary):
                 result = generate_fractal_aggregate(
-                    N=50,
-                    radius=1.0,
-                    inactivation_probability=0.1,
-                    overlap=0.1,
-                    cell_size=4.0,
-                    random_seed=42 + i,
+                    N=N_primary,
+                    radius=radius_primary,
+                    inactivation_probability=p_primary,
+                    overlap=overlap_primary,
+                    cell_size=cell_size_primary,
+                    random_seed=random_seed + i,
                     visualize=False
                 )
-                test_aggregates.append(result)
-            
-            # Store and show structure
-            st.session_state.test_aggregates = test_aggregates
-            st.success("✅ Generated 3 test aggregates")
-            
-            # Show structure in UI
-            st.subheader("Aggregate Structure")
-            for i, agg in enumerate(test_aggregates):
-                with st.expander(f"Aggregate #{i} Structure"):
-                    st.write("Keys in result dict:", list(agg.keys()))
-                    st.write("Number of particles:", len(agg['particles']))
-                    
-                    if agg['particles']:
-                        st.write("First particle keys:", list(agg['particles'][0].keys()))
-                        st.write("First particle position type:", type(agg['particles'][0]['position']))
-                        st.write("First particle position shape:", agg['particles'][0]['position'].shape)
+                primary_aggregates.append(result)
         
-        except Exception as e:
-            st.error(f"❌ Error generating test aggregates: {str(e)}")
-            st.code(traceback.format_exc())
+        with st.spinner("Assembling agglomerate..."):
+            try:
+                agglomerate_result = generate_agglomerate(
+                    aggregates_data=primary_aggregates,
+                    N_sub=N_sub if not use_all else None,
+                    contact_scaling_factor=contact_scaling,
+                    macro_cell_size_beta=macro_beta,
+                    random_seed=random_seed
+                )
+                st.session_state.agglomerate_result = agglomerate_result
+                st.success("Agglomerate generated successfully!")
+            except Exception as e:
+                st.error(f"Error generating agglomerate: {str(e)}")
     
-    if 'test_aggregates' in st.session_state and st.button("Attempt Agglomeration"):
-        try:
-            st.write("Attempting to create agglomerate from test aggregates...")
-            
-            # Try with minimal parameters
-            result = generate_agglomerate(
-                aggregates_data=st.session_state.test_aggregates,
-                contact_scaling_factor=1.0,
-                macro_cell_size_beta=2.5,
-                random_seed=42
-            )
-            
-            st.success("✅ AGGLOMERATION SUCCESSFUL!")
-            st.session_state.agglomerate_result = result
-            
-            # Show basic result info
-            with st.expander("Agglomerate Result Structure"):
-                st.write("Result keys:", list(result.keys()))
-                st.write("Total particles:", len(result['particles']))
-                st.write("Number of aggregates used:", result['macro_level']['num_aggregates'])
+    if 'agglomerate_result' in st.session_state:
+        st.markdown("---")
+        st.subheader("Agglomerate Properties")
+        col1, col2 = st.columns(2)
+        with col1:
+            num_particles = len(st.session_state.agglomerate_result['particles'])
+            num_aggregates = st.session_state.agglomerate_result['metadata']['num_aggregates']
+            st.metric("Total particles", num_particles)
+            st.metric("Number of aggregates", num_aggregates)
         
-        except Exception as e:
-            st.error(f"❌ AGGLOMERATION FAILED: {str(e)}")
-            st.subheader("Error Details")
-            st.code(traceback.format_exc())
+        with col2:
+            # Calculate basic metrics
+            Rg = calculate_radius_of_gyration(st.session_state.agglomerate_result)
+            sf = calculate_shape_factor(st.session_state.agglomerate_result)
+            st.metric("Radius of gyration", f"{Rg:.4f}")
+            st.metric("Shape factor", f"{sf:.4f}")
+        
+        # XYZ Export
+        st.markdown("---")
+        st.subheader("Export Options")
+        
+        if st.button("Save Agglomerate as XYZ"):
+            # Create XYZ content
+            particles = st.session_state.agglomerate_result['particles']
+            xyz_content = f"{len(particles)}\n"
+            xyz_content += "Agglomerate generated by Streamlit app\n"
+            for p in particles:
+                pos = p['position']
+                xyz_content += f"C {pos[0]:.6f} {pos[1]:.6f} {pos[2]:.6f}\n"
             
-            # Show what was passed to the function
-            st.subheader("Input Data Structure Check")
-            for i, agg in enumerate(st.session_state.test_aggregates):
-                st.write(f"Aggregate #{i} type:", type(agg))
-                if isinstance(agg, dict):
-                    st.write(f"Aggregate #{i} keys:", list(agg.keys()))
-                elif isinstance(agg, list):
-                    st.write(f"Aggregate #{i} is a list with {len(agg)} items")
+            st.download_button(
+                label="Download XYZ File",
+                data=xyz_content,
+                file_name="agglomerate.xyz",
+                mime="text/plain"
+            )
