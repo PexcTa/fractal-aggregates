@@ -856,6 +856,69 @@ with tabs[4]:
             st.metric("Radius of gyration", f"{Rg:.4f}")
             st.metric("Shape factor", f"{sf:.4f}")
         
+        # 3D Visualization from three angles
+        st.markdown("---")
+        st.subheader("Agglomerate Structure")
+        st.caption("Visualization from three different angles with particles colored by source aggregate")
+        
+        # Extract positions and aggregate IDs
+        particles = st.session_state.agglomerate_result['particles']
+        positions = np.array([p['position'] for p in particles])
+        aggregate_ids = np.array([p['aggregate_id'] for p in particles])
+        
+        # Create figure with three subplots
+        fig, axes = plt.subplots(1, 3, figsize=(18, 6), subplot_kw={'projection': '3d'})
+        fig.suptitle('Agglomerate Structure - Colored by Aggregate ID', fontsize=16)
+        
+        # Get unique aggregate IDs and create color mapping
+        unique_ids = np.unique(aggregate_ids)
+        cmap = plt.cm.Dark2
+        norm = plt.Normalize(min(unique_ids), max(unique_ids))
+        
+        # Define three different viewing angles
+        angles = [(30, 30), (30, 120), (90, 0)]
+        titles = ['Front View', 'Side View', 'Top View']
+        
+        # Plot each view
+        for i, ax in enumerate(axes):
+            # Create scatter plot with colors based on aggregate ID
+            scatter = ax.scatter(
+                positions[:, 0], positions[:, 1], positions[:, 2],
+                c=aggregate_ids, cmap='Dark2', s=10, alpha=0.8,
+                norm=norm
+            )
+            
+            # Set viewing angle
+            ax.view_init(elev=angles[i][0], azim=angles[i][1])
+            
+            # Set labels and title
+            ax.set_xlabel('X', fontsize=10)
+            ax.set_ylabel('Y', fontsize=10)
+            ax.set_zlabel('Z', fontsize=10)
+            ax.set_title(titles[i], fontsize=12)
+            
+            # Set equal aspect ratio
+            max_range = np.array([
+                positions[:,0].max()-positions[:,0].min(),
+                positions[:,1].max()-positions[:,1].min(),
+                positions[:,2].max()-positions[:,2].min()
+            ]).max() / 2.0
+            
+            mid_x = (positions[:,0].max()+positions[:,0].min()) * 0.5
+            mid_y = (positions[:,1].max()+positions[:,1].min()) * 0.5
+            mid_z = (positions[:,2].max()+positions[:,2].min()) * 0.5
+            
+            ax.set_xlim(mid_x - max_range, mid_x + max_range)
+            ax.set_ylim(mid_y - max_range, mid_y + max_range)
+            ax.set_zlim(mid_z - max_range, mid_z + max_range)
+        
+        # Add colorbar
+        cbar = fig.colorbar(scatter, ax=axes.ravel().tolist(), shrink=0.6)
+        cbar.set_label('Aggregate ID', fontsize=12)
+        
+        # Display the figure
+        st.pyplot(fig)
+        
         # XYZ Export
         st.markdown("---")
         st.subheader("Export Options")
