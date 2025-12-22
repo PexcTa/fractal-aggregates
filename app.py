@@ -832,8 +832,7 @@ with tabs[4]:
                 aggregates_data=st.session_state.test_aggregates,
                 contact_scaling_factor=1.0,
                 macro_cell_size_beta=2.5,
-                random_seed=42,
-                visualize=False
+                random_seed=42
             )
             
             st.success("✅ AGGLOMERATION SUCCESSFUL!")
