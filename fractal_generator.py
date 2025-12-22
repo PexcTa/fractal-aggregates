@@ -351,8 +351,6 @@ def generate_agglomerate(
     contact_scaling_factor=1.0,
     macro_cell_size_beta=2.5,
     random_seed=42,
-    visualize=False,
-    max_particles_for_spheres=200
 ):
     """
     Generate an agglomerate by placing aggregates using Porous Eden algorithm.
@@ -375,12 +373,6 @@ def generate_agglomerate(
     random_seed : int
         Random seed for reproducibility (default: 42)
     
-    visualize : bool
-        Whether to show 3D plot (default: False)
-    
-    max_particles_for_spheres : int
-        Max particles to render as spheres (default: 200)
-    
     Returns:
     --------
     dict with keys:
@@ -390,95 +382,168 @@ def generate_agglomerate(
         'metadata' : dict with statistics
     """
     
+    print("="*50)
+    print("STARTING AGGLOMERATE GENERATION")
+    print(f"Input type: {type(aggregates_data)}")
+    print(f"Number of input aggregates: {len(aggregates_data)}")
+    print("-"*50)
+    
     np.random.seed(random_seed)
     
     # ========== EXTRACT AGGREGATES ==========
+    print("EXTRACTING AGGREGATES FROM INPUT DATA...")
     aggregates = []
-    for agg_data in aggregates_data:
+    for i, agg_data in enumerate(aggregates_data):
+        print(f"  Processing aggregate #{i}:")
+        print(f"    Type: {type(agg_data)}")
+        
+        if isinstance(agg_data, dict):
+            print(f"    Dictionary keys: {list(agg_data.keys())}")
+            
         if isinstance(agg_data, dict) and 'particles' in agg_data:
+            print(f"    Found 'particles' key with {len(agg_data['particles'])} particles")
             aggregates.append(agg_data['particles'])
+            print("    ✓ Successfully extracted particles list")
         elif isinstance(agg_data, list):
+            print(f"    Direct list with {len(agg_data)} elements")
             aggregates.append(agg_data)
+            print("    ✓ Used direct list")
         else:
+            print("    ❌ Unexpected format - wrapping in list")
             aggregates.append([agg_data])
     
     original_num = len(aggregates)
+    print(f"\nExtracted {original_num} aggregates for assembly")
+    print("-"*50)
     
     # ========== N_sub SUBSAMPLING ==========
     if N_sub is not None:
+        print(f"SUBSAMPLING: Selecting {N_sub} aggregates from {original_num} (with replacement)")
         selected_indices = np.random.choice(original_num, size=N_sub, replace=True)
         aggregates = [aggregates[i] for i in selected_indices]
-        print(f"N_sub: selected {N_sub} aggregates from {original_num} (with replacement)")
+        print(f"Selected indices: {selected_indices}")
+        print(f"New number of aggregates: {len(aggregates)}")
+        print("-"*50)
     
     # ========== CALCULATE AGGREGATE PROPERTIES ==========
+    print("CALCULATING PROPERTIES FOR EACH AGGREGATE...")
     agg_properties = []
-    for agg in aggregates:
-        Rg, center = calculate_aggregate_properties(agg)
-        agg_properties.append({'Rg': Rg, 'center': center})
+    for i, agg in enumerate(aggregates):
+        print(f"  Processing aggregate #{i} with {len(agg)} particles")
+        print(f"    First particle keys: {list(agg[0].keys()) if agg else 'EMPTY'}")
+        print(f"    First position type: {type(agg[0]['position']) if agg and agg[0] else 'N/A'}")
+        print(f"    First position shape: {agg[0]['position'].shape if agg and agg[0] and hasattr(agg[0]['position'], 'shape') else 'N/A'}")
+        
+        try:
+            Rg, center = calculate_aggregate_properties(agg)
+            print(f"    ✓ Calculated Rg={Rg:.4f}, center={center}")
+            agg_properties.append({'Rg': Rg, 'center': center})
+        except Exception as e:
+            print(f"    ❌ ERROR calculating properties: {str(e)}")
+            print(f"    Aggregate structure: {type(agg)} with {len(agg) if hasattr(agg, '__len__') else 'unknown'} items")
+            raise
     
     mean_Rg = np.mean([p['Rg'] for p in agg_properties])
+    print(f"\nMean Rg across all aggregates: {mean_Rg:.4f}")
+    print("-"*50)
     
     # ========== MACRO-SCALE PLACEMENT (Porous Eden) ==========
+    print("PLACING AGGREGATES AT MACRO SCALE...")
     macro_positions = []  # Centers of aggregates in macro space
     macro_cell_size = macro_cell_size_beta * mean_Rg
+    print(f"Macro cell size: {macro_cell_size:.4f} (beta={macro_cell_size_beta}, mean_Rg={mean_Rg:.4f})")
+    
     spatial_grid = AggregateLevelGrid(macro_cell_size)
+    print("✓ Created spatial grid")
     
     # Place first aggregate at origin
     macro_positions.append(np.array([0.0, 0.0, 0.0]))
     spatial_grid.add_particle(0, macro_positions[0])
+    print("✓ Placed first aggregate at origin")
     
     # Place remaining aggregates
     active_indices = [0]
     step = 1
+    print(f"Starting placement loop with {len(aggregates)-1} remaining aggregates")
     
     while len(macro_positions) < len(aggregates):
         if len(active_indices) == 0:
-            # Start new cluster
+            print("  ⚠ No active indices - starting new cluster")
             active_indices = [len(macro_positions) - 1]
         
         # Pick random active aggregate
-        selected = active_indices[np.random.randint(len(active_indices))]
+        selected_idx = np.random.randint(len(active_indices))
+        selected = active_indices[selected_idx]
+        print(f"  Selected active aggregate #{selected} (index {selected_idx} in active list)")
         
         # Random direction
         direction = np.random.randn(3)
         direction = direction / np.linalg.norm(direction)
         
         # Place new aggregate
-        sum_Rg = agg_properties[selected]['Rg'] + agg_properties[len(macro_positions)]['Rg']
+        current_idx = len(macro_positions)
+        print(f"  Placing aggregate #{current_idx}")
+        
+        if current_idx >= len(agg_properties):
+            print(f"  ❌ ERROR: current_idx={current_idx} exceeds agg_properties length={len(agg_properties)}")
+            raise IndexError("Index out of bounds in agg_properties")
+            
+        sum_Rg = agg_properties[selected]['Rg'] + agg_properties[current_idx]['Rg']
         distance = contact_scaling_factor * sum_Rg * 2
+        print(f"    Sum Rg: {sum_Rg:.4f}, Distance: {distance:.4f}")
         
         new_pos = macro_positions[selected] + direction * distance
+        print(f"    Proposed position: {new_pos}")
         
         # Check for collisions
         collision = False
         neighbors = spatial_grid.get_neighbors(new_pos, radius=sum_Rg * 2)
+        print(f"    Checking {len(neighbors)} potential neighbors for collisions")
         
         for neighbor_idx in neighbors:
             dist_to_neighbor = np.linalg.norm(new_pos - macro_positions[neighbor_idx])
             min_dist = contact_scaling_factor * (
-                agg_properties[len(macro_positions)]['Rg'] + 
+                agg_properties[current_idx]['Rg'] + 
                 agg_properties[neighbor_idx]['Rg']
             ) * 2
             
+            print(f"      Neighbor #{neighbor_idx}: distance={dist_to_neighbor:.4f}, min_dist={min_dist:.4f}")
+            
             if dist_to_neighbor < min_dist:
+                print("      ❌ Collision detected!")
                 collision = True
                 break
         
         if not collision:
+            print("    ✓ No collision - placing aggregate")
             macro_positions.append(new_pos)
             spatial_grid.add_particle(len(macro_positions) - 1, new_pos)
             active_indices.append(len(macro_positions) - 1)
             step += 1
+            print(f"    Updated positions count: {len(macro_positions)}")
+        else:
+            print("    ⚠ Collision - skipping placement")
         
         # Randomly deactivate
-        if np.random.random() < 0.1:
-            if len(active_indices) > 0:
-                active_indices.pop(np.random.randint(len(active_indices)))
+        if np.random.random() < 0.1 and len(active_indices) > 0:
+            deactivate_idx = np.random.randint(len(active_indices))
+            deactivated = active_indices.pop(deactivate_idx)
+            print(f"    Randomly deactivated aggregate #{deactivated}")
+    
+    print(f"\n✓ Successfully placed all {len(macro_positions)} aggregates")
+    print("-"*50)
     
     # ========== TRANSFORM COORDINATES TO GLOBAL SYSTEM ==========
+    print("TRANSFORMING COORDINATES TO GLOBAL SYSTEM...")
     output_particles = []
+    total_particles = 0
+    
     for agg_idx, (agg, macro_pos) in enumerate(zip(aggregates, macro_positions)):
+        print(f"  Processing aggregate #{agg_idx} with {len(agg)} particles")
+        print(f"    Macro position: {macro_pos}")
+        
         Rg, local_center = agg_properties[agg_idx]['Rg'], agg_properties[agg_idx]['center']
+        print(f"    Local center: {local_center}, Rg: {Rg:.4f}")
         
         for particle in agg:
             # Local position relative to aggregate center
@@ -496,8 +561,15 @@ def generate_agglomerate(
                 **{k: v for k, v in particle.items() 
                    if k not in ['position', 'inactive']}
             })
+        
+        total_particles += len(agg)
+        print(f"    Added {len(agg)} particles from this aggregate")
+    
+    print(f"\n✓ Created {len(output_particles)} total particles in agglomerate")
+    print("-"*50)
     
     # ========== BUILD RETURN DICT ==========
+    print("BUILDING RESULT DICTIONARY...")
     result = {
         'particles': output_particles,
         'macro_level': {
@@ -519,31 +591,7 @@ def generate_agglomerate(
         }
     }
     
-    # ========== VISUALIZATION ==========
-    if visualize:
-        try:
-            import matplotlib.pyplot as plt
-            from mpl_toolkits.mplot3d import Axes3D
-            
-            fig = plt.figure(figsize=(12, 9))
-            ax = fig.add_subplot(111, projection='3d')
-            
-            positions = np.array([p['position'] for p in output_particles])
-            agg_ids = np.array([p['aggregate_id'] for p in output_particles])
-            
-            scatter = ax.scatter(
-                positions[:, 0], positions[:, 1], positions[:, 2],
-                c=agg_ids, cmap='tab20', s=20, alpha=0.6
-            )
-            
-            ax.set_xlabel('X')
-            ax.set_ylabel('Y')
-            ax.set_zlabel('Z')
-            ax.set_title(f'Agglomerate ({len(aggregates)} aggregates, '
-                        f'{len(output_particles)} particles)')
-            plt.colorbar(scatter, ax=ax, label='Aggregate ID')
-            plt.show()
-        except ImportError:
-            print("Matplotlib not available for visualization")
+    print("✓ Result dictionary created successfully")
+    print("="*50)
     
     return result

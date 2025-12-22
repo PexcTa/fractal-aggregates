@@ -833,9 +833,7 @@ with tabs[4]:
                     N_sub=N_sub if not use_all else None,
                     contact_scaling_factor=contact_scaling,
                     macro_cell_size_beta=macro_beta,
-                    random_seed=random_seed,
-                    visualize=False,
-                    max_particles_for_spheres=200
+                    random_seed=random_seed
                 )
                 st.success("Success! Agglomerate generated successfully.")
             except Exception as e:
