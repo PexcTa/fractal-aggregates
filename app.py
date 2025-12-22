@@ -784,33 +784,23 @@ with tabs[3]:
                         )
 
 with tabs[4]:
-    st.title("Agglomerate Generator")
-    st.caption("Generate hierarchical structures by assembling primary aggregates")
+    st.title("Aggregate Structure Inspector")
+    st.caption("Generate primary aggregates and examine their data structure")
+    
     # Parameters section
     with st.expander("Primary Aggregate Parameters", expanded=True):
         col1, col2 = st.columns(2)
         with col1:
-            num_primary = st.slider("Number of primary aggregates", 5, 200, 50)
-            N_primary = st.slider("Particles per primary aggregate", 10, 500, 100)
+            num_primary = st.slider("Number of primary aggregates", 5, 50, 10)
+            N_primary = st.slider("Particles per primary aggregate", 10, 200, 50)
             p_primary = st.slider("Inactivation probability (primary)", 0.0, 1.0, 0.1)
         with col2:
             overlap_primary = st.slider("Particle overlap (primary)", 0.0, 0.9, 0.1)
             cell_size_primary = st.slider("Cell size (primary)", 2.0, 10.0, 4.0)
             radius_primary = st.slider("Particle radius (primary)", 0.5, 5.0, 1.0)
-    
-    with st.expander("Agglomerate Assembly Parameters", expanded=True):
-        col1, col2 = st.columns(2)
-        with col1:
-            use_all = st.checkbox("Use all primary aggregates", value=True)
-            N_sub = None
-            if not use_all:
-                N_sub = st.slider("Number of aggregates to use", 2, num_primary, min(20, num_primary))
-        with col2:
-            contact_scaling = st.slider("Contact scaling factor", 0.5, 2.0, 1.0)
-            macro_beta = st.slider("Macro cell size factor (β)", 1.0, 5.0, 2.5)
             random_seed = st.number_input("Random seed", value=42, min_value=0)
     
-    if st.button("Generate Agglomerate", type="primary"):
+    if st.button("Generate Primary Aggregates", type="primary"):
         with st.spinner("Generating primary aggregates..."):
             primary_aggregates = []
             for i in range(num_primary):
@@ -824,76 +814,73 @@ with tabs[4]:
                     visualize=False
                 )
                 primary_aggregates.append(result)
-        
-        with st.spinner("Assembling agglomerate..."):
-            try:
-                # Extract just the particles from each aggregate for compatibility
-                aggregates_for_assembly = []
-                for agg in primary_aggregates:
-                    if isinstance(agg, dict) and 'particles' in agg:
-                        aggregates_for_assembly.append(agg['particles'])
-                    else:
-                        aggregates_for_assembly.append(agg)
-                
-                from fractal_generator import generate_agglomerate
-                agglomerate_result = generate_agglomerate(
-                    aggregates_data=aggregates_for_assembly,
-                    N_sub=N_sub if not use_all else None,
-                    contact_scaling_factor=contact_scaling,
-                    macro_cell_size_beta=macro_beta,
-                    random_seed=random_seed,
-                    visualize=False,
-                    max_particles_for_spheres=200
-                )
-                
-                # Create compatible result structure for metric calculations
-                compatible_result = {
-                    'particles': agglomerate_result['particles'],
-                    'parameters': {
-                        'N': len(agglomerate_result['particles']),
-                        'radius': radius_primary
-                    }
-                }
-                
-                st.session_state.agglomerate_result = compatible_result
-                st.session_state.raw_agglomerate = agglomerate_result
-                st.success("Agglomerate generated successfully!")
-            except Exception as e:
-                st.error(f"Error generating agglomerate: {str(e)}")
-    
-    if 'agglomerate_result' in st.session_state:
-        st.markdown("---")
-        st.subheader("Agglomerate Properties")
-        col1, col2 = st.columns(2)
-        with col1:
-            num_particles = len(st.session_state.agglomerate_result['particles'])
-            num_aggregates = st.session_state.raw_agglomerate['macro_level']['num_aggregates']
-            st.metric("Total particles", num_particles)
-            st.metric("Number of aggregates", num_aggregates)
-        
-        with col2:
-            # Calculate metrics using the compatible structure
-            Rg = calculate_radius_of_gyration(st.session_state.agglomerate_result)
-            sf = calculate_shape_factor(st.session_state.agglomerate_result)
-            st.metric("Radius of gyration", f"{Rg:.4f}")
-            st.metric("Shape factor", f"{sf:.4f}")
-        
-        # XYZ Export
-        st.markdown("---")
-        st.subheader("Export Options")
-        
-        if st.button("Save Agglomerate as XYZ"):
-            # Create XYZ content
-            particles = st.session_state.agglomerate_result['particles']
-            xyz_content = f"{len(particles)}\n"
-            xyz_content += "Agglomerate generated by Streamlit app\n"
-            for p in particles:
-                pos = p['position']
-                xyz_content += f"C {pos[0]:.6f} {pos[1]:.6f} {pos[2]:.6f}\n"
             
-            st.download_button(
-                label="Download XYZ File",
-                data=xyz_content,
-                file_name="agglomerate.xyz",
-                mime="text/plain"
-            )
+            # Store in session state for inspection
+            st.session_state.primary_aggregates = primary_aggregates
+            st.success(f"Generated {num_primary} primary aggregates successfully!")
+    
+    # Inspection section
+    if 'primary_aggregates' in st.session_state:
+        st.markdown("---")
+        st.subheader("Data Structure Inspection")
+        
+        # Show aggregate count
+        st.write(f"**Total aggregates generated:** {len(st.session_state.primary_aggregates)}")
+        
+        # Show structure of first aggregate
+        first_agg = st.session_state.primary_aggregates[0]
+        st.write("**First aggregate keys:**", list(first_agg.keys()))
+        
+        # Inspect particles structure
+        if 'particles' in first_agg:
+            st.write("**First aggregate 'particles' structure:**")
+            st.write(f"- Number of particles: {len(first_agg['particles'])}")
+            if first_agg['particles']:
+                st.write("- First particle keys:", list(first_agg['particles'][0].keys()))
+                st.write("- First particle sample:", first_agg['particles'][0])
+        
+        # Inspect intermediate states if available
+        if 'intermediate_states' in first_agg:
+            st.write("**Intermediate states structure:**")
+            st.write(f"- Number of states: {len(first_agg['intermediate_states'])}")
+            if first_agg['intermediate_states']:
+                st.write(f"- Particles in first state: {len(first_agg['intermediate_states'][0])}")
+        
+        # Show total_N if available
+        if 'total_N' in first_agg:
+            st.write("**Requested total particles:**", first_agg['total_N'])
+        
+        # Add button to show full JSON structure
+        if st.button("Show Full Structure (JSON)"):
+            import json
+            # Convert numpy arrays to lists for JSON serialization
+            def convert_to_serializable(obj):
+                if isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                elif isinstance(obj, np.integer):
+                    return int(obj)
+                elif isinstance(obj, np.floating):
+                    return float(obj)
+                elif isinstance(obj, dict):
+                    return {k: convert_to_serializable(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [convert_to_serializable(i) for i in obj]
+                return obj
+            
+            serializable_agg = convert_to_serializable(first_agg)
+            st.json(serializable_agg)
+        
+        st.markdown("---")
+        st.subheader("Raw Data Inspector")
+        agg_index = st.slider("Select aggregate to inspect", 0, len(st.session_state.primary_aggregates)-1, 0)
+        
+        selected_agg = st.session_state.primary_aggregates[agg_index]
+        st.write(f"**Aggregate #{agg_index} has {len(selected_agg['particles'])} particles**")
+        
+        # Show particle positions table
+        if st.checkbox("Show particle positions table"):
+            positions = np.array([p['position'] for p in selected_agg['particles']])
+            df = pd.DataFrame(positions, columns=['x', 'y', 'z'])
+            df['step'] = [p['added_step'] for p in selected_agg['particles']]
+            df['inactive'] = [p.get('inactive', False) for p in selected_agg['particles']]
+            st.dataframe(df.head(10))  # Show first 10 rows
