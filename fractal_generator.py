@@ -343,3 +343,207 @@ class AggregateLevelGrid:
                         neighbors.extend(self.grid[check_cell])
         
         return neighbors
+    
+
+def generate_agglomerate(
+    aggregates_data,
+    N_sub=None,
+    contact_scaling_factor=1.0,
+    macro_cell_size_beta=2.5,
+    random_seed=42,
+    visualize=False,
+    max_particles_for_spheres=200
+):
+    """
+    Generate an agglomerate by placing aggregates using Porous Eden algorithm.
+    
+    Parameters:
+    -----------
+    aggregates_data : list
+        List of aggregates (either particle dicts or result dicts)
+    
+    N_sub : int or None
+        If int: randomly select N_sub aggregates WITH REPLACEMENT from input
+        If None: use all aggregates (default)
+    
+    contact_scaling_factor : float
+        Scaling for contact distance between aggregates (default: 1.0)
+    
+    macro_cell_size_beta : float
+        Cell size = beta * mean_Rg for macro-scale grid (default: 2.5)
+    
+    random_seed : int
+        Random seed for reproducibility (default: 42)
+    
+    visualize : bool
+        Whether to show 3D plot (default: False)
+    
+    max_particles_for_spheres : int
+        Max particles to render as spheres (default: 200)
+    
+    Returns:
+    --------
+    dict with keys:
+        'particles' : list of particle dicts with tracking info
+        'macro_level' : dict with macro aggregate info
+        'parameters' : dict of generation parameters
+        'metadata' : dict with statistics
+    """
+    
+    np.random.seed(random_seed)
+    
+    # ========== EXTRACT AGGREGATES ==========
+    aggregates = []
+    for agg_data in aggregates_data:
+        if isinstance(agg_data, dict) and 'particles' in agg_data:
+            aggregates.append(agg_data['particles'])
+        elif isinstance(agg_data, list):
+            aggregates.append(agg_data)
+        else:
+            aggregates.append([agg_data])
+    
+    original_num = len(aggregates)
+    
+    # ========== N_sub SUBSAMPLING ==========
+    if N_sub is not None:
+        selected_indices = np.random.choice(original_num, size=N_sub, replace=True)
+        aggregates = [aggregates[i] for i in selected_indices]
+        print(f"N_sub: selected {N_sub} aggregates from {original_num} (with replacement)")
+    
+    # ========== CALCULATE AGGREGATE PROPERTIES ==========
+    agg_properties = []
+    for agg in aggregates:
+        Rg, center = calculate_aggregate_properties(agg)
+        agg_properties.append({'Rg': Rg, 'center': center})
+    
+    mean_Rg = np.mean([p['Rg'] for p in agg_properties])
+    
+    # ========== MACRO-SCALE PLACEMENT (Porous Eden) ==========
+    macro_positions = []  # Centers of aggregates in macro space
+    macro_cell_size = macro_cell_size_beta * mean_Rg
+    spatial_grid = AggregateLevelGrid(macro_cell_size)
+    
+    # Place first aggregate at origin
+    macro_positions.append(np.array([0.0, 0.0, 0.0]))
+    spatial_grid.add_particle(0, macro_positions[0])
+    
+    # Place remaining aggregates
+    active_indices = [0]
+    step = 1
+    
+    while len(macro_positions) < len(aggregates):
+        if len(active_indices) == 0:
+            # Start new cluster
+            active_indices = [len(macro_positions) - 1]
+        
+        # Pick random active aggregate
+        selected = active_indices[np.random.randint(len(active_indices))]
+        
+        # Random direction
+        direction = np.random.randn(3)
+        direction = direction / np.linalg.norm(direction)
+        
+        # Place new aggregate
+        sum_Rg = agg_properties[selected]['Rg'] + agg_properties[len(macro_positions)]['Rg']
+        distance = contact_scaling_factor * sum_Rg * 2
+        
+        new_pos = macro_positions[selected] + direction * distance
+        
+        # Check for collisions
+        collision = False
+        neighbors = spatial_grid.get_neighbors(new_pos, radius=sum_Rg * 2)
+        
+        for neighbor_idx in neighbors:
+            dist_to_neighbor = np.linalg.norm(new_pos - macro_positions[neighbor_idx])
+            min_dist = contact_scaling_factor * (
+                agg_properties[len(macro_positions)]['Rg'] + 
+                agg_properties[neighbor_idx]['Rg']
+            ) * 2
+            
+            if dist_to_neighbor < min_dist:
+                collision = True
+                break
+        
+        if not collision:
+            macro_positions.append(new_pos)
+            spatial_grid.add_particle(len(macro_positions) - 1, new_pos)
+            active_indices.append(len(macro_positions) - 1)
+            step += 1
+        
+        # Randomly deactivate
+        if np.random.random() < 0.1:
+            if len(active_indices) > 0:
+                active_indices.pop(np.random.randint(len(active_indices)))
+    
+    # ========== TRANSFORM COORDINATES TO GLOBAL SYSTEM ==========
+    output_particles = []
+    for agg_idx, (agg, macro_pos) in enumerate(zip(aggregates, macro_positions)):
+        Rg, local_center = agg_properties[agg_idx]['Rg'], agg_properties[agg_idx]['center']
+        
+        for particle in agg:
+            # Local position relative to aggregate center
+            local_pos = particle['position'] - local_center
+            
+            # Global position
+            global_pos = local_pos + macro_pos
+            
+            output_particles.append({
+                'position': global_pos,
+                'aggregate_id': agg_idx,
+                'added_step': step,
+                'parent_aggregate_Rg': Rg,
+                'inactive': particle.get('inactive', False),
+                **{k: v for k, v in particle.items() 
+                   if k not in ['position', 'inactive']}
+            })
+    
+    # ========== BUILD RETURN DICT ==========
+    result = {
+        'particles': output_particles,
+        'macro_level': {
+            'positions': macro_positions,
+            'Rg_values': [p['Rg'] for p in agg_properties],
+            'num_aggregates': len(aggregates)
+        },
+        'parameters': {
+            'contact_scaling_factor': contact_scaling_factor,
+            'macro_cell_size_beta': macro_cell_size_beta,
+            'mean_Rg': mean_Rg,
+            'random_seed': random_seed,
+            'N_sub': N_sub,
+            'original_num_aggregates': original_num
+        },
+        'metadata': {
+            'total_primary_particles': len(output_particles),
+            'num_aggregates': len(aggregates)
+        }
+    }
+    
+    # ========== VISUALIZATION ==========
+    if visualize:
+        try:
+            import matplotlib.pyplot as plt
+            from mpl_toolkits.mplot3d import Axes3D
+            
+            fig = plt.figure(figsize=(12, 9))
+            ax = fig.add_subplot(111, projection='3d')
+            
+            positions = np.array([p['position'] for p in output_particles])
+            agg_ids = np.array([p['aggregate_id'] for p in output_particles])
+            
+            scatter = ax.scatter(
+                positions[:, 0], positions[:, 1], positions[:, 2],
+                c=agg_ids, cmap='tab20', s=20, alpha=0.6
+            )
+            
+            ax.set_xlabel('X')
+            ax.set_ylabel('Y')
+            ax.set_zlabel('Z')
+            ax.set_title(f'Agglomerate ({len(aggregates)} aggregates, '
+                        f'{len(output_particles)} particles)')
+            plt.colorbar(scatter, ax=ax, label='Aggregate ID')
+            plt.show()
+        except ImportError:
+            print("Matplotlib not available for visualization")
+    
+    return result
