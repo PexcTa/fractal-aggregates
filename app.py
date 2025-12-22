@@ -797,6 +797,7 @@ with tabs[4]:
             overlap_primary = st.slider("Particle overlap (primary)", 0.0, 0.9, 0.1)
             cell_size_primary = st.slider("Cell size (primary)", 2.0, 10.0, 4.0)
             radius_primary = st.slider("Particle radius (primary)", 0.5, 5.0, 1.0)
+    
     with st.expander("Agglomerate Assembly Parameters", expanded=True):
         col1, col2 = st.columns(2)
         with col1:
@@ -826,8 +827,17 @@ with tabs[4]:
         
         with st.spinner("Assembling agglomerate..."):
             try:
+                # Extract just the particles from each aggregate for compatibility
+                aggregates_for_assembly = []
+                for agg in primary_aggregates:
+                    if isinstance(agg, dict) and 'particles' in agg:
+                        aggregates_for_assembly.append(agg['particles'])
+                    else:
+                        aggregates_for_assembly.append(agg)
+                
+                from fractals_source import generate_agglomerate
                 agglomerate_result = generate_agglomerate(
-                    aggregates_data=primary_aggregates,
+                    aggregates_data=aggregates_for_assembly,
                     N_sub=N_sub if not use_all else None,
                     contact_scaling_factor=contact_scaling,
                     macro_cell_size_beta=macro_beta,
@@ -835,7 +845,18 @@ with tabs[4]:
                     visualize=False,
                     max_particles_for_spheres=200
                 )
-                st.session_state.agglomerate_result = agglomerate_result
+                
+                # Create compatible result structure for metric calculations
+                compatible_result = {
+                    'particles': agglomerate_result['particles'],
+                    'parameters': {
+                        'N': len(agglomerate_result['particles']),
+                        'radius': radius_primary
+                    }
+                }
+                
+                st.session_state.agglomerate_result = compatible_result
+                st.session_state.raw_agglomerate = agglomerate_result
                 st.success("Agglomerate generated successfully!")
             except Exception as e:
                 st.error(f"Error generating agglomerate: {str(e)}")
@@ -846,12 +867,12 @@ with tabs[4]:
         col1, col2 = st.columns(2)
         with col1:
             num_particles = len(st.session_state.agglomerate_result['particles'])
-            num_aggregates = st.session_state.agglomerate_result['metadata']['num_aggregates']
+            num_aggregates = st.session_state.raw_agglomerate['macro_level']['num_aggregates']
             st.metric("Total particles", num_particles)
             st.metric("Number of aggregates", num_aggregates)
         
         with col2:
-            # Calculate basic metrics
+            # Calculate metrics using the compatible structure
             Rg = calculate_radius_of_gyration(st.session_state.agglomerate_result)
             sf = calculate_shape_factor(st.session_state.agglomerate_result)
             st.metric("Radius of gyration", f"{Rg:.4f}")
