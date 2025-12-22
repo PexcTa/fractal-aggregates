@@ -304,12 +304,26 @@ def calculate_porosity(particles_or_result, particle_radius=1.0):
     porosity = max(0.0, min(1.0, porosity))
     return porosity, convex_hull_volume, total_particle_volume
 
-def calculate_aggregate_properties(aggregate_particles):
-    """Calculate Rg and center of mass for an aggregate"""
-    positions = np.array([p['position'] for p in aggregate_particles])
+def calculate_aggregate_properties(particles):
+    """
+    Calculate Rg and center of mass for an aggregate.
+    
+    Parameters:
+    -----------
+    particles : list of dicts
+        Each dict must have 'position' key with numpy array [x, y, z]
+    
+    Returns:
+    --------
+    Rg : float
+        Radius of gyration
+    center : numpy array
+        Center of mass
+    """
+    positions = np.array([p['position'] for p in particles])
     center = np.mean(positions, axis=0)
-    rg = calculate_radius_of_gyration(positions - center)
-    return rg, center
+    Rg = np.sqrt(np.mean(np.sum((positions - center)**2, axis=1)))
+    return Rg, center
 
 class AggregateLevelGrid:
     """Spatial grid for efficient aggregate-level collision detection"""
