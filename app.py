@@ -835,7 +835,7 @@ with tabs[4]:
                     else:
                         aggregates_for_assembly.append(agg)
                 
-                from fractals_source import generate_agglomerate
+                from fractal_generator import generate_agglomerate
                 agglomerate_result = generate_agglomerate(
                     aggregates_data=aggregates_for_assembly,
                     N_sub=N_sub if not use_all else None,
